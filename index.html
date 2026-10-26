@@ -1,0 +1,2619 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A0D12">
+<meta name="color-scheme" content="dark">
+<title>Calo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ================================================================ tokens
+   Tối, tối giản, xanh lam là màu chính. Màu theo ý nghĩa:
+   volt/go = xanh lam: nút, chọn, "đạt", tập luyện · over = xanh đậm (+ icon lửa): vượt mục tiêu calo
+   flame = hổ phách: calo · cyan = xanh biển: nước · red = ngọn lửa, lỗi
+   cal-1..4 = các sắc hổ phách cho từng bữa · amber = bạc cho chất béo */
+:root{
+  --bg:#0A0D12; --s1:#11161D; --s2:#171D26; --line:#1F2733; --line-2:#2C3644;
+  --ink:#E8EDF4; --ink-2:#B4BFCD; --muted:#7A8596;
+  --volt:#4F7CFF; --volt-ink:#9DB5FF; --on-volt:#FFFFFF; --go:#4F7CFF;
+  --flame:#FFB547; --cyan:#22B3F2; --red:#FF5A5F; --over:#2747C9; --amber:#AEB8C6;
+  --cal-1:#FFD58F; --cal-2:#FFB547; --cal-3:#DE8B1C; --cal-4:#FFEBC9;
+  --track:rgba(255,255,255,.06);
+  --display:"Inter Tight",Inter,system-ui,sans-serif;
+  color-scheme:dark;
+}
+
+/* ================================================================ base */
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit;text-underline-offset:3px}
+h1,h2,h3{margin:0}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px}
+main.wrap{padding-bottom:108px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.hidden{display:none!important}
+.loading{pointer-events:none}
+/* màn chờ: nền mờ nhẹ (vẫn thấy trang phía sau), logo Calo nhảy chấm + chữ gợn sóng */
+#loader{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(10,13,18,.5);
+  opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s}
+#loader.on{opacity:1;visibility:visible;transition:opacity .2s}
+.ld{display:flex;flex-direction:column;align-items:center;gap:10px;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+.ld-logo{display:flex;align-items:baseline;font-family:var(--display);font-weight:700;font-size:42px;letter-spacing:-.03em;line-height:1}
+.ld-logo span{display:inline-block;animation:ldWave 1.4s ease-in-out infinite}
+.ld-logo span:nth-child(2){animation-delay:.1s} .ld-logo span:nth-child(3){animation-delay:.2s} .ld-logo span:nth-child(4){animation-delay:.3s}
+.ld-logo i{display:block;width:10px;height:10px;margin-left:3px;border-radius:50%;background:var(--volt);
+  box-shadow:0 0 14px var(--volt);animation:ldDot .7s cubic-bezier(.3,0,.4,1) infinite alternate;transform-origin:50% 100%}
+.ld-bar{width:96px;height:3px;border-radius:3px;background:var(--track);overflow:hidden}
+.ld-bar::after{content:"";display:block;width:40%;height:100%;border-radius:3px;background:var(--volt);animation:ldBar 1.1s ease-in-out infinite}
+.ld small{color:var(--muted);font-size:12.5px}
+@keyframes ldWave{0%,60%,100%{transform:none;opacity:1}30%{transform:translateY(-5px);opacity:.7}}
+@keyframes ldDot{0%{transform:translateY(0) scale(1.15,.8)}25%{transform:translateY(-4px) scale(1)}100%{transform:translateY(-22px) scale(.95,1.05)}}
+@keyframes ldBar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.num{font-family:var(--display);font-weight:600;letter-spacing:-.025em;line-height:1}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ================================================================ controls */
+input,select{background:var(--s2);border:1px solid var(--line);border-radius:10px;height:46px;padding:0 12px;width:100%;font-size:15px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--volt);outline-offset:1px}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin:14px 0 0}
+label > input,label > select{margin-top:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 18px;border-radius:12px;
+  border:0;background:var(--volt);color:var(--on-volt);font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:transform .08s}
+.btn:active{transform:scale(.97)}
+.btn.sec{background:var(--s2);color:var(--ink);border:1px solid var(--line)}
+.btn.ghost{background:transparent;color:var(--ink-2)}
+.btn.icon{width:46px;padding:0}
+.btn.cyan{background:rgba(34,179,242,.16);color:#7FD3FA}
+.btn:disabled{opacity:.3;cursor:default;transform:none}
+.btn small{font-weight:500;opacity:.75}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+.hint.warn{color:var(--flame)}
+.err{font-size:13px;color:var(--red);margin:10px 0 0;min-height:1em}
+
+/* ================================================================ header */
+header.top{position:sticky;top:0;z-index:5;background:rgba(10,13,18,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:4px;height:58px}
+.logo{display:flex;align-items:baseline;gap:1px;margin-right:auto;font-family:var(--display);font-weight:700;
+  font-size:22px;letter-spacing:-.03em}
+.logo i{display:block;width:6px;height:6px;border-radius:50%;background:var(--volt)}
+.who{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 3px;background:var(--s1)}
+.who select{border:0;height:30px;padding:0 2px;background:transparent;width:auto;max-width:120px;font-weight:600}
+.av{width:30px;height:30px;border-radius:50%;background:rgba(79,124,255,.18);color:var(--volt-ink);display:grid;place-items:center;
+  font-family:var(--display);font-weight:600;font-size:14px;flex:none}
+.av.lg{width:56px;height:56px;font-size:24px}
+
+/* ================================================================ date bar */
+.datebar{display:flex;align-items:center;justify-content:space-between;margin:12px 0 0}
+.datebar .d{position:relative;display:flex;align-items:center;gap:8px;font-weight:700;padding:8px 12px;border-radius:10px;cursor:pointer}
+.datebar .d:hover{background:var(--s1)}
+.datebar .d input[type=date]{position:absolute;inset:0;opacity:0;cursor:pointer;height:auto;border:0;padding:0}
+/* ô ngày tự vẽ: ô date gốc hiện theo ngôn ngữ trình duyệt (vd 10/25/2026) → phủ trong suốt lên trên, chạm vào là mở lịch */
+.datef{position:relative;display:flex;align-items:center;gap:10px;margin-top:6px;height:46px;padding:0 12px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--line);font-size:15px;font-weight:500;color:var(--ink)}
+.datef .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.datef svg.i{width:18px;height:18px;color:var(--muted);flex:none}
+.datef:focus-within{outline:2px solid var(--volt);outline-offset:1px}
+.datef input,.datebar .d input{-webkit-appearance:none;appearance:none}
+.datef input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;border:0;padding:0;cursor:pointer}
+.datef input::-webkit-calendar-picker-indicator,.datebar .d input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;cursor:pointer}
+.datebar .btn.icon{height:40px;width:40px}
+#todayLink{text-align:center;margin:0}
+
+/* ================================================================ type */
+.kicker{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+.headline{font-family:var(--display);font-weight:600;font-size:26px;line-height:1.18;letter-spacing:-.025em;margin-top:6px}
+.headline em{font-style:inherit;color:var(--volt-ink)}
+.sect{display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 10px}
+.sect h2{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.02em}
+.sect .meta{font-size:13px;color:var(--muted);font-weight:500}
+
+/* ================================================================ blocks */
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:18px}
+.card + .card{margin-top:12px}
+.hello{display:flex;align-items:flex-start;gap:12px;padding:16px 0 14px}
+.hello > div:first-child{flex:1;min-width:0}
+.streak{flex:none;display:flex;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--line);border-radius:14px;
+  padding:8px 12px 8px 10px}
+.streak .flame{color:var(--red)}
+.streak .flame.cold{color:var(--muted)}
+.streak b{font-size:24px}
+.streak small{display:block;font-size:11px;font-weight:600;color:var(--muted);line-height:1.1}
+
+/* hero: vòng tiến độ */
+.hero{display:grid;grid-template-columns:148px 1fr;gap:16px;align-items:center}
+.rings{width:148px;height:148px;display:block}
+.rings .c-num{font-family:var(--display);font-weight:600;font-size:32px;letter-spacing:-.03em;fill:var(--ink)}
+.rings .c-lbl{font-size:10px;font-weight:600;fill:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.remain .k{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.remain .num{font-size:50px;display:block;margin:4px 0 12px}
+.remain .num small{font-family:Inter,sans-serif;font-size:15px;color:var(--muted);font-weight:500;margin-left:4px;letter-spacing:0}
+.remain.over .num{color:var(--ink)}
+.remain .k svg.i{width:14px;height:14px;color:var(--red);vertical-align:-2px;margin-right:2px}
+.leg{display:grid;gap:6px}
+.leg div{display:grid;grid-template-columns:10px auto 1fr;gap:8px;align-items:baseline;font-size:13px}
+.leg i{width:10px;height:10px;border-radius:3px;align-self:center}
+.leg span{color:var(--muted)}
+.leg b{text-align:right;font-weight:700;font-size:14px}
+.leg b small{font-weight:500;color:var(--muted)}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.deficit{margin-top:12px;border-color:rgba(79,124,255,.35);
+  background:radial-gradient(120% 140% at 0% 0%,rgba(79,124,255,.28),rgba(79,124,255,0) 60%),var(--s1)}
+.deficit .dh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.deficit .dh .k{font-size:12px;font-weight:500;color:var(--ink-2);text-transform:uppercase;letter-spacing:.09em}
+.chip-s{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(79,124,255,.18);color:var(--volt-ink);white-space:nowrap}
+.chip-s.warn{background:rgba(255,90,95,.14);color:#FF8A8E}
+.deficit .dv{display:flex;align-items:baseline;gap:8px;margin:10px 0 14px}
+.deficit .dv .num{font-size:56px}
+.deficit .dv small{font-size:15px;color:var(--muted);font-weight:500}
+.deficit .fat{margin-left:auto;text-align:right;font-size:12.5px;color:var(--muted);line-height:1.3}
+.deficit .fat b{display:block;font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.02em}
+.dbar{position:relative;height:10px;border-radius:5px;background:var(--track);overflow:hidden}
+.dbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,#3D6BFF,#8DB0FF)}
+.dfoot{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.dfoot b{color:var(--ink);font-weight:600}
+.tile{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px}
+.tile .k{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.tile .num{font-size:26px}
+.tile .num small{font-family:Inter,sans-serif;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0}
+.tile .sub{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+.tile .bar{height:4px;border-radius:2px;background:var(--track);margin-top:8px;overflow:hidden}
+.tile .bar i{display:block;height:100%;border-radius:2px}
+.pos{color:var(--volt-ink)} .neg{color:var(--ink)}
+
+/* nước */
+.water-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.water-h .num{font-size:28px;color:var(--cyan)}
+.water-h .num small{font-family:Inter,sans-serif;font-size:14px;color:var(--muted);font-weight:500;letter-spacing:0}
+.drops{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:4px;margin-bottom:14px}
+.drops i{height:24px;border-radius:5px;background:var(--track)}
+.drops i.on{background:var(--cyan)}
+.wbtns{display:grid;grid-template-columns:46px 1fr auto;gap:8px}
+
+/* lịch 4 tuần */
+.heat{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.heat .h{font-size:11px;font-weight:600;color:var(--muted);text-align:center}
+.heat i{aspect-ratio:1;border-radius:6px;background:var(--track);position:relative}
+.heat i.ok{background:var(--go)}
+.heat i.over{background:var(--over);display:grid;place-items:center;color:var(--red)}
+.heat i.over svg{width:55%;height:55%;fill:currentColor;stroke:none}
+.fl{display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-right:4px;fill:var(--red)}
+.heat i.part{background:var(--line-2)}
+.heat i.void{background:transparent}
+.heat i.today{outline:2px solid var(--ink);outline-offset:1px}
+.heat-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)}
+.keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.keys i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* thanh chia nhiều phần */
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--track);gap:2px}
+.stack i{display:block;height:100%}
+.rows{margin-top:12px}
+.rows > div{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.rows > div:first-child{border-top:0}
+.rows i{width:12px;height:12px;border-radius:3px}
+.rows .v{font-weight:600}
+.rows .v small{font-weight:400;color:var(--muted)}
+.rows .v{display:flex;align-items:center;gap:8px}
+.mini{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);
+  font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mini:hover{border-color:var(--volt);color:var(--volt-ink)}
+.rows .skipped b,.rows .skipped .sub{color:var(--muted)}
+.rows .sub{display:block;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rows > div > span:nth-child(2){min-width:0}
+.rows .link{cursor:pointer}
+
+/* danh sách */
+.list{list-style:none;margin:0;padding:0}
+.list > li{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);min-height:50px}
+.list > li:first-child{border-top:0;padding-top:2px}
+.list .grow{flex:1;min-width:0}
+.list .name{font-weight:600}
+.list .sub{font-size:12.5px;color:var(--muted)}
+.list .kc{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+.list .kc small{font-family:Inter,sans-serif;font-size:12px;font-weight:500;color:var(--muted);margin-left:3px;letter-spacing:0}
+.list .acts{display:flex;margin-right:-8px}
+.list .acts button{width:36px;height:36px;border:0;background:none;color:var(--muted);border-radius:8px;cursor:pointer;display:grid;place-items:center}
+.list .acts button:hover{background:var(--s2);color:var(--ink)}
+.list .acts svg.i{width:18px;height:18px}
+.mealhead{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 4px}
+.mealhead:first-child{margin-top:0}
+.mealhead b{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:-.01em}
+.mealhead span{font-size:13px;color:var(--muted)}
+
+/* việc hôm nay */
+.segs{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:3px;margin-bottom:12px}
+.segs i{height:6px;border-radius:3px;background:var(--track)}
+.segs i.on{background:var(--go)}
+.ck{width:24px;height:24px;border-radius:7px;border:2px solid var(--line-2);display:grid;place-items:center;flex:none;background:transparent;color:var(--on-volt);padding:0}
+.ck svg.i{width:15px;height:15px;stroke-width:3}
+.ck.ok{background:var(--volt);border-color:var(--volt)}
+.ck.fail{background:var(--over);border-color:var(--over);color:var(--red)}
+.ck.fail svg.i.fill{fill:currentColor;stroke:none}
+button.ck{cursor:pointer}
+li.done .name{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-2)}
+/* nhiệm vụ: ô vuông = bấm để đánh dấu · chấm tròn + mũi tên = tự chấm, bấm để đi tới chỗ ghi */
+.tgrp{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:14px 0 2px;font-size:12px;font-weight:600;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tgrp:first-of-type{margin-top:4px}
+.tgrp small{text-transform:none;letter-spacing:0;font-weight:500}
+.list.tasks li{padding:0}
+.trow{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 0;border:0;background:none;color:inherit;
+  font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.trow .name{font-weight:600}
+.trow:active{opacity:.7}
+li.done .trow .name{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line-2)}
+.trow .st{width:22px;height:22px;border-radius:50%;border:2px dashed var(--line-2);display:grid;place-items:center;flex:none;color:var(--on-volt)}
+.trow .st svg.i{width:13px;height:13px;stroke-width:3}
+.trow .st.ok{background:var(--go);border:0}
+.trow .st.fail{background:var(--over);border:0;color:var(--red)}
+.trow .st.fail svg.i{fill:currentColor;stroke:none}
+.trow .chev{color:var(--muted);flex:none;display:grid}
+.trow .chev svg.i{width:18px;height:18px}
+.lnk{border:0;background:none;color:var(--volt-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0 0 0 8px}
+.tag{font-size:11px;font-weight:600;color:var(--volt-ink);background:rgba(79,124,255,.14);border-radius:999px;padding:2px 8px;white-space:nowrap}
+
+/* huấn luyện viên */
+.coach{display:flex;gap:12px;align-items:flex-start}
+.coach .badge{flex:none;width:38px;height:38px;border-radius:50%;background:rgba(79,124,255,.14);color:var(--volt-ink);display:grid;place-items:center}
+.coach .badge svg.i{width:22px;height:22px}
+.notes{list-style:none;margin:0;padding:0;flex:1}
+.notes li{position:relative;padding:8px 0 8px 16px;border-top:1px solid var(--line);font-size:14.5px;color:var(--ink-2)}
+.notes li:first-child{border-top:0;padding-top:0}
+.notes li::before{content:"";position:absolute;left:1px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.notes li:first-child::before{top:8px}
+.notes li[data-tone=ok]::before{background:var(--volt-ink)}
+.notes li[data-tone=warn]::before{background:var(--over)}
+.notes li[data-tone=warn]{color:var(--ink)}
+
+/* form ăn uống */
+.tabs-u{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--s2);border-radius:12px;padding:4px;margin-bottom:14px}
+.tabs-u button{height:38px;border:0;background:none;color:var(--muted);font-weight:600;border-radius:9px;cursor:pointer}
+.tabs-u button.on{background:var(--line-2);color:var(--ink)}
+.qty{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:6px}
+.qty select{width:auto}
+.suggest{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px dashed var(--line-2);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.suggest .grow{flex:1;min-width:0}
+.suggest .btn{height:36px;padding:0 14px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--s2);border-radius:999px;
+  height:36px;padding:0 13px;font-size:14px;font-weight:600;cursor:pointer}
+.chip span{font-size:12px;color:var(--muted);font-weight:500}
+.chip:hover{border-color:var(--line-2);background:var(--line)}
+.chip.on{background:rgba(79,124,255,.16);border-color:rgba(79,124,255,.6)}
+.list.browse{max-height:360px;overflow:auto;margin-top:8px;border-top:1px solid var(--line)}
+/* buổi tập */
+.wk h3{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-.02em;margin:4px 0 0}
+.wk-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.wk-n{font-family:var(--display);font-weight:600;font-size:22px;white-space:nowrap}
+.wk-n small{font-family:Inter,sans-serif;font-size:12.5px;color:var(--muted);font-weight:500;margin-left:3px}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}
+.seg3 button{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--s2);color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0 4px;white-space:nowrap}
+.seg3 button.on{background:rgba(79,124,255,.16);border-color:rgba(79,124,255,.6);color:var(--ink)}
+.wk-list > li{align-items:flex-start}
+.wk-ex .note{font-size:12.5px;color:var(--volt-ink);margin-top:3px}
+.wk-ex.done .name{color:var(--muted)}
+.sets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.setb{min-width:64px;height:36px;padding:0 10px;border-radius:10px;border:1px dashed var(--line-2);background:transparent;color:var(--ink-2);
+  font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.setb.on{border:0;background:var(--go);color:var(--on-volt)}
+.howto{margin-top:6px;font-size:13px;color:var(--ink-2)}
+.howto summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+.howto p{margin:6px 0}
+.howto a{color:var(--volt-ink)}
+.tips{margin:4px 0 0;padding-left:18px;color:var(--ink-2)}
+.quality{border-left:3px solid var(--line-2)}
+.quality.ok{border-left-color:var(--go)}
+.quality.warn{border-left-color:var(--flame)}
+.quality p{margin:8px 0 0;color:var(--ink-2);font-size:14px}
+.qrow{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13.5px;color:var(--muted)}
+.qrow b{color:var(--ink);font-family:var(--display);font-size:16px}
+.tips li{margin:4px 0}
+.chips.reps .chip{min-width:46px;justify-content:center;height:40px;font-size:15px;font-weight:600}
+#workoutBox.busy{opacity:.6;pointer-events:none}
+.list.browse li{cursor:pointer}
+.list.browse li:hover .name{color:var(--volt-ink)}
+.lbl-s{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:18px}
+.manual{border-top:1px dashed var(--line-2);margin-top:14px;padding-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 10px}
+
+/* tìm món + món ghép */
+.search{position:relative}
+.search input{padding-left:42px;padding-right:42px;height:50px;font-size:16px}
+.search .sicon{position:absolute;left:13px;top:15px;color:var(--muted);pointer-events:none}
+.search .sclear{position:absolute;right:6px;top:6px;width:38px;height:38px;border:0;background:none;color:var(--muted);border-radius:10px;cursor:pointer;display:grid;place-items:center}
+.sug{list-style:none;margin:6px 0 0;padding:4px;background:var(--s2);border:1px solid var(--line-2);border-radius:14px;max-height:300px;overflow:auto}
+.sug li{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer}
+.sug li.act,.sug li:hover{background:var(--line)}
+.sug .grow{flex:1;min-width:0}
+.sug .name{font-weight:600}
+.sug .name .add{color:var(--volt-ink);font-weight:500}
+.sug .sub{font-size:12.5px;color:var(--muted)}
+.sug .kc{font-family:var(--display);font-weight:600;font-size:16px;white-space:nowrap}
+.sug .kc small{font-family:Inter,sans-serif;font-size:11px;color:var(--muted);margin-left:2px}
+.chip.tog svg.i{width:14px;height:14px;stroke-width:2.6;color:var(--volt-ink)}
+.chip.tog.on{background:rgba(79,124,255,.16);border-color:rgba(79,124,255,.6);color:var(--ink)}
+.chip.tog.on span{color:var(--volt-ink)}
+.seg2{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:6px;margin-top:8px}
+.seg2 button{height:40px;border-radius:10px;border:1px solid var(--line);background:var(--s2);font-weight:600;color:var(--ink-2);cursor:pointer;font-size:15px}
+.seg2 button.on{background:rgba(79,124,255,.16);border-color:rgba(79,124,255,.6);color:var(--ink)}
+.stepper{display:grid;grid-template-columns:46px 1fr 46px auto;gap:6px;margin-top:8px}
+.stepper input{text-align:center;font-family:var(--display);font-weight:600;font-size:18px}
+.stepper select{width:auto}
+.addbar{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.addbar .grow{flex:1;min-width:0}
+.addbar .name{font-weight:600;line-height:1.3}
+.addbar .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.addbar .kc{font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:-.02em;white-space:nowrap;color:var(--flame)}
+.addbar .kc small{font-family:Inter,sans-serif;font-size:12px;color:var(--muted);margin-left:3px;letter-spacing:0}
+
+.sug li.online-row{border-top:1px solid var(--line);border-radius:0 0 10px 10px;margin-top:2px}
+.sug .oi{width:32px;height:32px;border-radius:50%;background:rgba(79,124,255,.16);color:var(--volt-ink);display:grid;place-items:center;flex:none}
+.sug .oi svg.i{width:16px;height:16px}
+.online{margin-top:10px;border:1px solid var(--line-2);border-radius:14px;padding:12px 14px;background:var(--s2)}
+.online .oh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.online .oh .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.online .x{width:36px;height:36px;border:0;background:none;color:var(--muted);border-radius:8px;cursor:pointer;display:grid;place-items:center;flex:none}
+.online .list li .btn{height:36px;padding:0 12px;font-size:13px}
+.online .list .kc{font-size:17px}
+.online .list li{align-items:flex-start}
+.online .list .sub a{color:var(--volt-ink)}
+.online .ai-pick{border:1px solid rgba(79,124,255,.45);border-radius:12px;padding:10px 10px 10px 12px;background:rgba(79,124,255,.08)}
+.online .ai-pick{flex-wrap:wrap}
+.online .ai-pick .grow{flex-basis:100%}
+.online .ai-pick .kc{margin-left:auto}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13.5px;padding:8px 0}
+.spin.sm{width:16px;height:16px;border-width:2px;margin:0;flex:none}
+.online-alt{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.online-alt .btn{height:40px;font-size:13.5px;text-decoration:none;padding:0 10px}
+.online-alt .btn svg.i{width:16px;height:16px}
+.online .custom{margin-top:6px}
+.spin{width:22px;height:22px;border:3px solid var(--line-2);border-top-color:var(--volt);border-radius:50%;animation:spin .8s linear infinite;margin:14px auto 6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* biểu đồ */
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+svg.chart text{fill:var(--muted);font-size:11px;font-family:Inter,sans-serif}
+svg.chart text.v{fill:var(--ink);font-family:var(--display);font-weight:600;font-size:12.5px}
+
+/* tuần */
+.pips{display:flex;gap:3px;margin-top:8px}
+.pips i{flex:1;height:5px;border-radius:3px;background:var(--track)}
+.pips i.on{background:var(--c,var(--go))}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vs .num{font-size:40px;display:block;margin-top:6px}
+.vs .num small{font-family:Inter,sans-serif;font-size:14px;color:var(--muted);font-weight:500;letter-spacing:0}
+table.wk{width:100%;border-collapse:collapse;font-size:13.5px}
+.wk th,.wk td{padding:9px 3px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}
+.wk tr:first-child th{border-top:0;padding-top:0}
+.wk th:first-child,.wk td:first-child{text-align:left}
+.wk th{color:var(--muted);font-weight:600;font-size:12px}
+.wk tfoot td{font-weight:700}
+.mk{display:inline-block;width:20px;height:20px;line-height:20px;border-radius:6px;text-align:center;font-weight:800;font-size:12px}
+.mk.ok{background:rgba(79,124,255,.2);color:var(--volt-ink)} .mk.no{background:var(--track);color:var(--muted)} .mk.na{color:var(--line-2)}
+.mk.over{background:var(--over);color:var(--red);display:inline-grid;place-items:center;vertical-align:middle}
+.mk.over svg{width:12px;height:12px;fill:currentColor}
+
+/* hồ sơ */
+.phead{display:flex;align-items:center;gap:14px;padding:18px 0 4px}
+.phead h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-.025em;line-height:1.1}
+.phead .grow{flex:1;min-width:0}
+.journey .num{font-size:48px;display:block;margin-top:6px}
+.journey .num small{font-family:Inter,sans-serif;font-size:15px;color:var(--muted);font-weight:500;letter-spacing:0}
+.track{position:relative;height:12px;border-radius:6px;background:var(--track);margin:14px 0 8px;overflow:visible}
+.track > i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--go)}
+.track > b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--s1);border-radius:1px}
+.ends{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+.ends b{color:var(--ink);font-weight:700}
+.kv{margin:0}
+.kv > div{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14.5px}
+.kv > div:first-child{border-top:0;padding-top:0}
+.kv dt{color:var(--ink-2)} .kv dd{margin:0;font-weight:700}
+.kv dt small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+
+/* khoá / trống */
+.center{max-width:340px;margin:44px auto 0;text-align:center}
+.center .ico{width:60px;height:60px;border-radius:50%;background:rgba(79,124,255,.14);color:var(--volt-ink);display:grid;place-items:center;
+  margin:0 auto 18px}
+.center .ico svg.i{width:28px;height:28px}
+.center h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-.025em;line-height:1.15;margin-bottom:8px}
+.center p{color:var(--muted);margin:0 0 20px;font-size:14.5px}
+#pinIn{height:60px;text-align:center;font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:.5em;padding-left:.5em}
+
+/* chào mừng · chọn tài khoản · đăng ký */
+.login{max-width:420px;margin:32px auto 0}
+.login .headline{font-size:32px;margin:10px 0 6px}
+.login > p.muted{margin:0 0 18px}
+.who-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--s1);border:1px solid var(--line)}
+.who-card .grow{flex:1;min-width:0}
+.who-card b{display:block;font-weight:600}
+.who-card small{color:var(--muted);font-size:12.5px}
+.who-card .av{width:40px;height:40px;font-size:17px}
+.login-q{margin-bottom:6px}
+.login-list li{cursor:pointer;border-radius:12px;padding-left:6px}
+.login-list li:hover{background:var(--s1)}
+.login-list .sec-h{cursor:default;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;min-height:0;padding:12px 0 4px}
+.login-list .sec-h:hover{background:none}
+.login-new{margin-top:26px}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin-bottom:12px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.welcome{max-width:420px;margin:36px auto 0}
+.welcome .headline{font-size:32px;margin:18px 0 22px}
+.perks{list-style:none;margin:0 0 26px;padding:0;display:grid;gap:14px}
+.perks li{display:flex;gap:12px;align-items:flex-start;font-size:15px;color:var(--ink-2)}
+.perks li b{display:block;color:var(--ink);font-weight:600}
+.perks .pi{flex:none;width:38px;height:38px;border-radius:12px;background:rgba(79,124,255,.14);color:var(--volt-ink);display:grid;place-items:center}
+.lock-alt{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:10px}
+.lock-alt .btn{height:38px;font-size:14px;color:var(--volt-ink)}
+.pick{max-width:420px;margin:30px auto 0}
+.pick h2{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:-.025em;margin-bottom:6px}
+.pick .list li{cursor:pointer;border-radius:12px;padding-left:6px}
+.pick .list li:hover{background:var(--s1)}
+.wiz{max-width:440px;margin:16px auto 0}
+.su-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.su-top .lnk{padding:0}
+.wiz .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px}
+.wiz .steps i{height:4px;border-radius:2px;background:var(--track)}
+.wiz .steps i.on{background:var(--volt)}
+.wiz h2{font-family:var(--display);font-weight:600;font-size:28px;letter-spacing:-.025em;margin:4px 0 4px}
+.wiz .lead{color:var(--muted);margin:0 0 6px;font-size:14.5px}
+.segN{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;margin-top:6px}
+.segN button{height:44px;border-radius:12px;border:1px solid var(--line);background:var(--s1);font-weight:600;color:var(--ink-2);cursor:pointer}
+.segN button.on{background:rgba(79,124,255,.16);border-color:rgba(79,124,255,.6);color:var(--ink)}
+.opt-cards{display:grid;gap:8px;margin-top:6px}
+.opt-card{text-align:left;border:1px solid var(--line);background:var(--s1);border-radius:14px;padding:12px 14px;cursor:pointer;color:var(--ink)}
+.opt-card b{display:block;font-weight:600}
+.opt-card span{font-size:13px;color:var(--muted)}
+.opt-card.on{border-color:rgba(79,124,255,.7);background:rgba(79,124,255,.12)}
+.plan{margin-top:18px;border:1px solid rgba(79,124,255,.35);border-radius:18px;padding:16px;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(79,124,255,.26),rgba(79,124,255,0) 60%),var(--s1)}
+.plan .num{font-size:44px;display:block;margin:6px 0 10px}
+.plan .num small{font-family:Inter,sans-serif;font-size:15px;color:var(--muted);font-weight:500;letter-spacing:0}
+.wiz-nav{display:flex;gap:10px;margin-top:24px}
+.wiz-nav .btn:last-child{flex:1}
+.invite{display:grid;grid-template-columns:1fr auto;gap:8px}
+.invite input{font-size:13px;color:var(--ink-2)}
+
+.remember{display:flex;align-items:center;justify-content:center;gap:8px;margin:14px 0 0;font-weight:500;color:var(--ink-2);cursor:pointer}
+.remember input{width:18px;height:18px;margin:0;accent-color:var(--volt)}
+.wiz .remember{justify-content:flex-start;margin-top:16px}
+.badge-s{font-size:11.5px;font-weight:600;color:var(--volt-ink);background:rgba(79,124,255,.14);border-radius:999px;padding:2px 8px;white-space:nowrap}
+
+/* điều hướng dưới */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(17,22,29,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);z-index:5;
+  padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs .wrap{display:flex;padding:6px 4px 8px}
+nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;
+  padding:0;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer}
+nav.tabs button span{display:grid;place-items:center;width:52px;height:30px;border-radius:15px}
+nav.tabs button svg.i{width:22px;height:22px}
+nav.tabs button.on{color:var(--ink)}
+nav.tabs button.on span{background:rgba(79,124,255,.16);color:var(--volt-ink)}
+
+/* hộp thoại, thông báo */
+dialog{border:1px solid var(--line);border-radius:18px;padding:0;width:min(520px,94vw);background:var(--s1);color:var(--ink)}
+dialog::backdrop{background:rgba(5,6,8,.6)}
+dialog form{padding:20px}
+dialog h3{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.02em}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+#toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,8px);background:var(--ink);color:var(--bg);font-weight:500;
+  padding:11px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;pointer-events:none;width:max-content;max-width:min(92vw,480px);z-index:10}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--red);color:#fff}
+.ring-arc{transition:stroke-dasharray .6s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion: reduce){ #toast,.loading,.btn,.ring-arc{transition:none}
+  .ld-logo span,.ld-logo i,.ld-bar::after{animation:none} .ld-logo{animation:ldPulse 1.6s ease-in-out infinite} }
+@keyframes ldPulse{50%{opacity:.55}}
+</style>
+</head>
+<body>
+<div id="loader" class="on" role="status" aria-live="polite" aria-label="Đang tải">
+  <div class="ld"><div class="ld-logo" aria-hidden="true"><span>C</span><span>a</span><span>l</span><span>o</span><i></i></div>
+  <div class="ld-bar"></div><small id="loaderText">Đang tải…</small></div>
+</div>
+<header class="top"><div class="wrap">
+  <div class="logo">Calo<i></i></div>
+  <div class="who hidden" id="who"><span class="av" id="userAv"></span><select id="userSel" aria-label="Người dùng"></select></div>
+  <button class="btn ghost icon hidden" id="lockBtn" title="Khoá hồ sơ trên máy này" aria-label="Khoá hồ sơ"></button>
+  <button class="btn ghost icon" id="addUserBtn" title="Thêm người dùng" aria-label="Thêm người dùng"></button>
+</div></header>
+
+<main class="wrap" id="main">
+  <section id="v-signup" class="hidden"></section>
+
+  <section id="v-lock" class="hidden"><div class="login">
+    <div class="kicker">Calo · theo dõi giảm cân</div>
+    <h1 class="headline" id="lockTitle">Đăng nhập</h1>
+    <p class="muted" id="lockSub">Chọn tên của bạn rồi nhập mã PIN.</p>
+    <div id="loginWho"></div>
+    <form id="lockForm" class="hidden">
+      <label for="pinIn">Mã PIN</label>
+      <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" pattern="\d{4,6}" maxlength="6" required aria-label="Mã PIN, 4 đến 6 số">
+      <label class="remember"><input type="checkbox" id="rememberMe" checked> Ghi nhớ đăng nhập trên máy này</label>
+      <button class="btn" style="width:100%;margin-top:12px" id="pinBtn">Đăng nhập</button>
+      <p class="small muted" id="lockForgot" style="margin:12px 0 0">Quên PIN? Nhờ người quản lý Google Sheet xoá ô <b>pinHash</b> của bạn
+        trong bảng Users, rồi đặt PIN mới tại đây.</p>
+    </form>
+    <div class="login-new">
+      <div class="or"><span>Chưa có tài khoản?</span></div>
+      <div id="inviteNote" class="hint hidden" style="margin:0 0 10px;text-align:center">Bạn được mời dùng Calo. Tạo tài khoản mất khoảng 1 phút.</div>
+      <button class="btn sec" id="toSignup" type="button" style="width:100%" onclick="startSignup()">Tạo tài khoản mới</button>
+    </div>
+  </div></section>
+
+  <div id="datebar" class="hidden">
+    <div class="datebar">
+      <button class="btn ghost icon" id="prevDay" onclick="shiftDate(-1)" aria-label="Ngày trước" data-icon="left"></button>
+      <div class="d"><span id="dateLabel"></span><span class="muted" data-icon="cal"></span>
+        <input type="date" id="datePick" aria-label="Chọn ngày để xem hoặc ghi bù"></div>
+      <button class="btn ghost icon" id="nextDay" onclick="shiftDate(1)" aria-label="Ngày sau" data-icon="right"></button>
+    </div>
+    <div id="todayLink" class="hint hidden">Đang ghi bù cho ngày cũ · <a href="#" onclick="setDate(BOOT.today);return false">Về hôm nay</a></div>
+  </div>
+
+  <section id="v-today" class="view hidden"></section>
+
+  <section id="v-food" class="view hidden">
+    <div class="sect" style="margin-top:16px"><h2>Ghi món</h2><span class="meta" id="foodTotal"></span></div>
+    <div class="card">
+      <div class="tabs-u" id="mealSeg" role="tablist" aria-label="Bữa"></div>
+      <div id="copyBox"></div>
+      <div class="search">
+        <span class="sicon" data-icon="search"></span>
+        <input id="foodIn" placeholder="Tìm món, gõ không dấu cũng được" autocomplete="off" aria-label="Tên món"
+          role="combobox" aria-autocomplete="list" aria-controls="sugBox" aria-expanded="false">
+        <button class="sclear hidden" id="foodClear" aria-label="Xoá tên món" data-icon="x"></button>
+      </div>
+      <ul id="sugBox" class="sug hidden" role="listbox" aria-label="Gợi ý món"></ul>
+      <div id="onlineBox" class="hidden" aria-live="polite"></div>
+      <div id="dishBox" class="hidden">
+        <div id="addonBox"></div>
+        <div class="lbl-s" id="qtyLbl">Phần ăn</div>
+        <div class="seg2" id="fracSeg" role="group" aria-label="Ăn được bao nhiêu"></div>
+        <div class="stepper">
+          <button class="btn sec icon" onclick="qtyStep(-1)" aria-label="Bớt">−</button>
+          <input id="servIn" value="1" inputmode="decimal" autocomplete="off" aria-label="Số suất">
+          <button class="btn sec icon" onclick="qtyStep(1)" aria-label="Thêm">+</button>
+          <select id="unitSel" aria-label="Đơn vị"><option value="kp">suất</option></select>
+        </div>
+      </div>
+      <div id="manualBox" class="manual hidden">
+        <div class="err" style="min-height:0">Không tra được món này trên mạng. Nhập calo tay:</div>
+        <div class="grid2">
+          <label>kcal mỗi suất<input id="manKcal" type="number" min="0"></label>
+          <label>Một suất là<input id="manServ" placeholder="ví dụ: 1 tô"></label>
+        </div>
+      </div>
+      <div class="addbar">
+        <div class="grow"><div class="name" id="previewName">Chọn món để thêm</div><div class="sub" id="previewSub">Gõ tên món hoặc chạm vào món hay ăn</div></div>
+        <span class="kc" id="previewKcal"></span>
+        <button class="btn" id="addFoodBtn" onclick="addFood()" disabled>Thêm</button>
+      </div>
+      <div id="favBox"></div>
+      <div id="groupBox"></div>
+    </div>
+    <div class="sect"><h2>Đã ăn</h2><span class="meta" id="foodSum"></span></div>
+    <div class="card" id="foodListBox"></div>
+  </section>
+
+  <section id="v-ex" class="view hidden">
+    <div id="workoutBox" class="hidden" style="margin-top:16px"></div>
+    <div class="sect" id="exWeekSect" style="margin-top:16px"><h2>7 ngày tập</h2><span class="meta" id="exWeekMeta"></span></div>
+    <div class="card" id="exChart"></div>
+    <div class="sect"><h2 id="exLogTitle">Ghi buổi tập</h2><span class="meta" id="exLogMeta"></span></div>
+    <div class="card">
+      <label for="actSel" style="margin-top:0">Hoạt động</label><select id="actSel" style="margin-top:6px"></select>
+      <label for="minIn">Số phút</label>
+      <div class="qty" style="grid-template-columns:1fr auto">
+        <input id="minIn" type="number" min="1" value="30">
+        <button class="btn" onclick="addExercise()">Thêm</button>
+      </div>
+      <div class="hint" id="exHint"></div>
+    </div>
+    <div class="sect"><h2>Đã tập</h2><span class="meta" id="exTotal"></span></div>
+    <div class="card" id="exListBox"></div>
+  </section>
+
+  <section id="v-week" class="view hidden"></section>
+  <section id="v-profile" class="view hidden"></section>
+</main>
+
+<nav class="tabs hidden" id="tabs" aria-label="Điều hướng"><div class="wrap">
+  <button data-v="today" class="on"><span data-icon="bolt"></span>Hôm nay</button>
+  <button data-v="food"><span data-icon="bowl"></span>Ăn uống</button>
+  <button data-v="ex"><span data-icon="run"></span>Tập luyện</button>
+  <button data-v="week"><span data-icon="bars"></span>Tuần</button>
+  <button data-v="profile"><span data-icon="user"></span>Hồ sơ</button>
+</div></nav>
+
+<dialog id="userDlg"><form method="dialog" id="userForm">
+  <h3 id="userDlgTitle">Hồ sơ</h3>
+  <input type="hidden" name="id">
+  <div class="grid2">
+    <label>Tên<input name="name" required></label>
+    <label>Email <span class="muted">(tuỳ chọn)</span><input name="email" type="email"></label>
+    <label>Giới tính<select name="gender"><option>Nam</option><option>Nữ</option></select></label>
+    <label>Năm sinh<input name="birthYear" type="number" min="1930" max="2015" required></label>
+    <label>Chiều cao (cm)<input name="heightCm" inputmode="decimal" autocomplete="off" required></label>
+    <label><span id="swLbl">Cân nặng hiện tại (kg)</span><input name="startWeight" inputmode="decimal" autocomplete="off" required></label>
+    <label>Cân nặng mục tiêu (kg)<input name="goalWeight" inputmode="decimal" autocomplete="off" required></label>
+    <label>Giảm mỗi tuần (kg)<select name="ratePerWeek"><option>0.25</option><option selected>0.5</option><option>0.75</option><option>1</option></select></label>
+    <label>Tập mỗi ngày (phút)<input name="exerciseGoalMin" type="number" value="30"></label>
+    <label>Nước mỗi ngày (lít)<input name="waterGoalL" inputmode="decimal" autocomplete="off" value="2"></label>
+  </div>
+  <label>Công việc hằng ngày<select name="activity" id="levelSel"></select></label>
+  <div class="hint">Chỉ chọn theo công việc. Buổi tập được cộng riêng từ mục Tập luyện.</div>
+  <div class="grid2 newOnly">
+    <label>Mã PIN (4–6 số)<input name="pin" type="password" inputmode="numeric" autocomplete="off" pattern="\d{4,6}" maxlength="6"></label>
+    <label>Nhập lại PIN<input name="pin2" type="password" inputmode="numeric" autocomplete="off" pattern="\d{4,6}" maxlength="6"></label>
+  </div>
+  <div class="err" id="userErr" role="alert"></div>
+  <div class="dlg-actions">
+    <button class="btn sec" value="cancel" formnovalidate>Huỷ</button>
+    <button class="btn" id="saveUserBtn" value="ok">Lưu</button>
+  </div>
+</form></dialog>
+
+<dialog id="editDlg"><form method="dialog" id="editForm">
+  <h3 id="editTitle">Sửa</h3>
+  <div id="editFields"></div>
+  <div class="err" id="editErr" role="alert"></div>
+  <div class="dlg-actions">
+    <button class="btn sec" value="cancel" formnovalidate>Huỷ</button>
+    <button class="btn" value="ok">Lưu</button>
+  </div>
+</form></dialog>
+
+<dialog id="setDlg"><form method="dialog" id="setForm">
+  <h3 id="setTitle"></h3>
+  <div class="small muted" id="setSub"></div>
+  <div id="setKgBox"><div class="lbl-s" id="setKgLbl">Mức tạ (kg)</div>
+    <div class="stepper" style="grid-template-columns:46px 1fr 46px">
+      <button type="button" class="btn sec icon" onclick="kgStep(-1)" aria-label="Giảm tạ">−</button>
+      <input id="setKg" inputmode="decimal" autocomplete="off" aria-label="Mức tạ (kg)">
+      <button type="button" class="btn sec icon" onclick="kgStep(1)" aria-label="Tăng tạ">+</button></div></div>
+  <div class="lbl-s" id="setRepsLbl">Số lần đã làm · chạm để lưu</div>
+  <div class="chips reps" id="setReps"></div>
+  <div class="dlg-actions"><button class="btn sec" value="cancel" formnovalidate id="setUndo">Huỷ</button></div>
+</form></dialog>
+
+<dialog id="askDlg"><form method="dialog">
+  <h3 id="askText">Xoá mục này?</h3>
+  <div class="dlg-actions">
+    <button class="btn sec" value="no">Huỷ</button>
+    <button class="btn" value="yes" id="askYes">Xoá</button>
+  </div>
+</form></dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script>
+// ================================================================ icons (nét 2, vẽ tay)
+const ICONS = {
+  bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+  bowl: '<path d="M3.5 11.5h17a8.5 8.5 0 0 1-17 0Z"/><path d="M9 4.5c.8.8.8 2 0 3M13 4.5c.8.8.8 2 0 3"/>',
+  run: '<circle cx="14.5" cy="4.5" r="1.8"/><path d="M8 21l2.5-5.5L13 17v4M6 11l3-3.5 4.5 1.5 2 3.5 3 1M10.5 15.5 12.5 9"/>',
+  bars: '<path d="M5 20v-7M12 20V5M19 20v-10"/>',
+  user: '<circle cx="12" cy="8.5" r="3.75"/><path d="M4.5 20c1.4-3.6 4.2-5.25 7.5-5.25s6.1 1.65 7.5 5.25"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.75a3.5 3.5 0 0 1 7 0v2.75"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M6 12h12"/>',
+  edit: '<path d="M5 19h3.5L19 8.5 15.5 5 5 15.5z"/><path d="m13.5 7 3.5 3.5"/>',
+  x: '<path d="M7 7l10 10M17 7 7 17"/>',
+  left: '<path d="m14.5 6-6 6 6 6"/>',
+  right: '<path d="m9.5 6 6 6-6 6"/>',
+  cal: '<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  check: '<path d="m5.5 12.5 4 4 9-9.5"/>',
+  flame: '<path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.1 2-5.2 3.6-7 .6 1.6 1.6 2.6 2.7 3 .1-3.2 1.6-5.6 3.7-7.3-.3 2.6.6 4.6 2 6.4 1.2 1.5 1.9 3 1.9 4.9 0 3.6-2.6 6.2-7.4 6.2Z"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>',
+  whistle: '<path d="M4 13a5 5 0 1 0 10 0V9H8a4 4 0 0 0-4 4Z"/><path d="M14 9h6v3h-6M9 13h.01"/>',
+};
+const icon = (n, cls) => `<svg class="i${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+function paintIcons(root) {
+  (root || document).querySelectorAll('[data-icon]').forEach(el => { if (!el.firstChild) el.innerHTML = icon(el.dataset.icon); });
+}
+
+// ================================================================ API & tiện ích
+const WRITES = new Set(['addFood', 'addExercise', 'addWeight', 'toggleTask', 'deleteEntry', 'updateEntry', 'copyMeal',
+                        'addWater', 'undoWater', 'saveUser', 'saveOnlineFood', 'changePin', 'skipMeal',
+                        'addBody', 'updateSettings', 'logSet', 'addCustomFood']);
+/**
+ * Chạy trong Apps Script (link /exec) → google.script.run. Đặt ở trang riêng (GitHub Pages) → POST tới link /exec
+ * ghi trong config.js (window.CALO_API); Content-Type text/plain để trình duyệt không phải hỏi trước CORS.
+ */
+const IN_GAS = typeof google !== 'undefined' && !!(google.script && google.script.run);
+const API_URL = String(window.CALO_API || '').trim();
+function callServer(fn, args) {
+  if (IN_GAS) return new Promise((resolve, reject) =>
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args));
+  if (!/^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[\w-]+\/exec$/.test(API_URL) || /DAN_MA_TRIEN_KHAI/.test(API_URL))
+    return Promise.reject(new Error('Chưa cấu hình máy chủ: mở config.js, dán link /exec của Apps Script vào CALO_API'));
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn, args }) })
+    .then(r => {
+      if (!r.ok) throw new Error('Service error ' + r.status);
+      return r.text();
+    })
+    .then(t => {
+      let j;
+      try { j = JSON.parse(t); } catch (e) {
+        throw new Error('Máy chủ trả về trang lạ. Kiểm tra bản triển khai Apps Script: "Bất kỳ ai" được truy cập, và link /exec trong config.js');
+      }
+      if (!j.ok) throw new Error(j.error);
+      return j.data;
+    });
+}
+function api(fn, ...args) {
+  return callServer(fn, args).then(r => { if (WRITES.has(fn)) markStale(); return r; });
+}
+
+/**
+ * Bộ nhớ đệm trên trình duyệt: chuyển tab hiện ngay dữ liệu đã tải, rồi mới hỏi lại máy chủ ở nền (không làm mờ).
+ * Khoá = "người dùng|loại|ngày". Dữ liệu dưới 60 giây coi là mới; mọi thao tác ghi đánh dấu tất cả là cũ.
+ */
+const CACHE = {}, FRESH_MS = 60000;
+function markStale() { Object.keys(CACHE).forEach(k => { CACHE[k].at = 0; }); }
+function clearCache() { Object.keys(CACHE).forEach(k => { delete CACHE[k]; }); }
+/**
+ * Màn chờ dùng chung: đếm số việc đang chờ; chỉ hiện nếu chờ quá 250 ms (tránh nháy), đã hiện thì giữ ít nhất 450 ms.
+ * Lúc mở app thì hiện sẵn (#loader có class "on" trong HTML) đến khi tải xong.
+ */
+const loader = {
+  n: 0, t: 0, at: Date.now(),
+  on(text) {
+    $('#loaderText').textContent = text || 'Đang tải…';
+    if (this.n++) return;
+    clearTimeout(this.t);
+    if (!this.at) this.t = setTimeout(() => { $('#loader').classList.add('on'); this.at = Date.now(); }, 250);
+  },
+  off() {
+    if (--this.n > 0) return;
+    this.n = 0; clearTimeout(this.t);
+    if (!this.at) return;
+    this.t = setTimeout(() => { if (!this.n) { $('#loader').classList.remove('on'); this.at = 0; } }, Math.max(0, 450 - (Date.now() - this.at)));
+  },
+};
+async function swr(key, fetch, render, still, el) {
+  const hit = CACHE[key];
+  const draw = d => { el.shown === key ? keepInputs(el, () => render(d)) : render(d); el.shown = key; el.shownData = d; };
+  if (hit && !(el.shown === key && el.shownData === hit.data)) draw(hit.data);   // đang hiện đúng dữ liệu này thì thôi
+  if (hit && Date.now() - hit.at < FRESH_MS) return;
+  if (!hit) { el.classList.add('loading'); el.waiting = (el.waiting || 0) + 1; loader.on(); }
+  try {
+    const data = await fetch();
+    const changed = !hit || JSON.stringify(hit.data) !== JSON.stringify(data);
+    CACHE[key] = { data, at: Date.now() };
+    if (changed && still()) draw(data);
+  } catch (e) { if (still()) fail(e); }
+  if (!hit) { loader.off(); if (!(el.waiting = el.waiting - 1)) el.classList.remove('loading'); }
+}
+/** Vẽ lại khi dữ liệu mới về ở nền mà không làm mất chữ đang gõ hay ô đang chọn. */
+function keepInputs(el, fn) {
+  const typed = [...el.querySelectorAll('input[id]')].filter(i => i.value !== i.defaultValue).map(i => [i.id, i.value, i]);
+  const focus = el.contains(document.activeElement) ? document.activeElement : null;
+  fn();
+  typed.forEach(([id, v, old]) => {
+    const i = document.getElementById(id);
+    if (i && i !== old) { i.value = v; i.dispatchEvent(new Event('input')); }
+  });
+  if (focus && focus.id && !document.body.contains(focus)) { const n = document.getElementById(focus.id); if (n) n.focus(); }
+}
+/** Sau lần mở đầu: tải sẵn tuần này + hồ sơ để lần đầu bấm sang 2 tab đó cũng hiện ngay. */
+const prefetched = new Set();
+function prefetchOnce() {
+  const uid = S.userId;
+  if (prefetched.has(uid)) return;
+  prefetched.add(uid);
+  setTimeout(() => {
+    if (S.userId !== uid || !tok.get(uid)) return;
+    const a = auth(), wk = mondayOf(BOOT.today);
+    [[`${uid}|week|${wk}`, () => api('getWeek', a, wk)], [`${uid}|profile`, () => api('getProfile', a)]].forEach(([k, f]) => {
+      if (!CACHE[k]) f().then(d => { if (!CACHE[k]) CACHE[k] = { data: d, at: Date.now() }; }).catch(() => {});
+    });
+  }, 700);
+}
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = n => Math.round(n || 0).toLocaleString('vi-VN');
+const dec = (n, d) => Number(n || 0).toLocaleString('vi-VN', { maximumFractionDigits: d == null ? 1 : d });
+const ddmm = ymd => ymd.slice(8) + '/' + ymd.slice(5, 7);
+/** Đọc số người dùng gõ: nhận cả "57,6" lẫn "57.6" (ô type=number của Safari/Chrome tiếng Anh bỏ mất dấu phẩy). */
+const numVal = v => { const t = String(v == null ? '' : v).trim().replace(',', '.'); return t === '' ? NaN : Number(t); };
+const dateLabel = ymd => !ymd ? 'Chọn ngày' : fmtDate(ymd) + (ymd.slice(0, 4) !== BOOT.today.slice(0, 4) ? '/' + ymd.slice(0, 4) : '');
+const dateField = (attrs, ymd) => `<span class="datef"><span class="t">${dateLabel(ymd)}</span>${icon('cal')}`
+  + `<input type="date" ${attrs} value="${ymd}" max="${BOOT.today}" aria-label="Ngày" oninput="this.parentNode.firstChild.textContent=dateLabel(this.value)"></span>`;
+const clamp01 = v => Math.max(0, Math.min(1, v || 0));
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const tokenKey = id => 'calo.token.' + id;
+const sess = {
+  get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch (e) {} },
+};
+/** Ghi nhớ trên máy → localStorage (còn sau khi đóng trình duyệt); không ghi nhớ → sessionStorage (mất khi đóng tab). */
+const tok = {
+  get: id => store.get(tokenKey(id)) || sess.get(tokenKey(id)),
+  remembered: id => !!store.get(tokenKey(id)),
+  set(id, t, remember) {
+    if (remember) { store.set(tokenKey(id), t); sess.del(tokenKey(id)); }
+    else { sess.set(tokenKey(id), t); store.del(tokenKey(id)); }
+  },
+  del(id) { store.del(tokenKey(id)); sess.del(tokenKey(id)); },
+};
+const auth = () => ({ userId: S.userId, token: tok.get(S.userId) });
+/** Thông báo lỗi từ backend (Apps Script có thể thêm tiền tố "Error: " / "Exception: "). */
+/** Lỗi hệ thống của Google (tiếng Anh, khó hiểu) → câu tiếng Việt; lỗi app tự báo thì giữ nguyên. */
+const SYS_ERRS = [
+  [/NetworkError|HTTP 0|Failed to fetch|network/i, 'Mất kết nối mạng. Kiểm tra mạng rồi thử lại.'],
+  [/Lock timeout|lock for too long/i, 'Nhiều người đang ghi cùng lúc. Thử lại sau vài giây.'],
+  [/Exceeded maximum execution time|timed out|timeout/i, 'Máy chủ phản hồi quá lâu. Thử lại sau ít phút.'],
+  [/too many times|Rate Limit|too many simultaneous|quota/i, 'Máy chủ đang quá tải. Thử lại sau ít phút.'],
+  [/server error occurred|Internal error|Service unavailable|Service error|backend error/i, 'Máy chủ Google đang lỗi tạm thời. Thử lại sau ít phút.'],
+  [/Authorization is required|permission/i, 'Ứng dụng chưa được cấp quyền. Báo người quản lý Google Sheet.'],
+];
+const errMsg = e => {
+  const m = String((e && e.message) || e || 'Có lỗi xảy ra').replace(/^(Error|Exception|ScriptError):\s*/i, '');
+  if (/^AUTH/.test(m)) return m;
+  const hit = SYS_ERRS.find(([re]) => re.test(m));
+  return hit ? hit[1] : m;
+};
+const isAuthErr = e => /^AUTH/.test(errMsg(e));
+function toast(msg, ms, bad) {
+  const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !!bad); t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), ms || 2600);
+}
+function fail(e) {
+  if (isAuthErr(e)) { tok.del(S.userId); clearCache(); showLock(); return; }
+  toast(errMsg(e), 4000, true);
+}
+
+// ================================================================ state
+let BOOT = null, DAY = null;
+const S = { userId: null, date: null, view: 'today', meal: null, weekStart: null, place: {} };   // place: nơi tập chọn theo ngày
+const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+function fmtDate(ymd) {
+  const d = new Date(ymd + 'T00:00:00');
+  const dow = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'][d.getDay()];
+  const label = ymd === BOOT.today ? 'Hôm nay' : ymd === addDays(BOOT.today, -1) ? 'Hôm qua' : dow;
+  return label + ', ' + ddmm(ymd);
+}
+function addDays(ymd, n) {
+  const p = ymd.split('-').map(Number);
+  return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10);
+}
+function mondayOf(ymd) { const d = new Date(ymd + 'T00:00:00Z').getUTCDay(); return addDays(ymd, d === 0 ? -6 : 1 - d); }
+function defaultMeal() { const h = new Date().getHours(); return h < 10 ? 'Sáng' : h < 14 ? 'Trưa' : h < 17 ? 'Phụ' : 'Tối'; }
+const initial = name => (String(name || '?').trim().split(/\s+/).pop() || '?').charAt(0).toUpperCase();
+const userName = () => (BOOT.users.find(x => x.id === S.userId) || {}).name || '';
+const walkMin = (kcal, kg) => Math.max(5, Math.round(kcal / ((4.3 - 1) * (kg || 60) / 60) / 5) * 5);
+
+// ================================================================ boot
+async function init() {
+  $('#lockBtn').innerHTML = icon('lock');
+  $('#addUserBtn').innerHTML = icon('plus');
+  paintIcons();
+  loader.n = 1;                                   // màn chờ đã hiện sẵn từ HTML
+  document.body.classList.add('loading');
+  try {
+    const id0 = store.get('calo.userId'), t0 = id0 && tok.get(id0);
+    const early = t0 ? api('getDay', { userId: id0, token: t0 }, null).catch(() => null) : null;
+    BOOT = await bootstrap();
+    const d0 = early && await early;
+    if (d0 && d0.date === BOOT.today) CACHE[`${id0}|day|${d0.date}|`] = { data: d0, at: Date.now() };
+    S.date = BOOT.today; S.meal = defaultMeal(); S.weekStart = mondayOf(BOOT.today);
+    if (BOOT.fitness) {                            // phần fitness mới (Config.fitness = 1); tắt thì giữ giao diện v2
+      document.querySelector('nav [data-v="profile"]').lastChild.textContent = 'Cơ thể';
+      $('#workoutBox').classList.remove('hidden'); $('#exWeekSect').style.marginTop = '';
+      $('#exLogTitle').textContent = 'Ghi hoạt động khác'; $('#exLogMeta').textContent = 'đi bộ, chạy, bơi, thể thao…';
+    }
+    $('#levelSel').innerHTML = BOOT.levels.map(l => `<option>${esc(l)}</option>`).join('');
+    $('#actSel').innerHTML = BOOT.activities.map(a => `<option>${esc(a.name)}</option>`).join('');
+    $('#mealSeg').innerHTML = BOOT.meals.map(m => `<button role="tab" data-m="${m}">${m}</button>`).join('');
+    $('#fracSeg').innerHTML = FRACS.map(([f, l]) => `<button data-f="${f}" onclick="setFrac(${f})">${l}</button>`).join('');
+    const params = await urlParams(), stored = store.get('calo.userId');
+    const known = BOOT.users.some(u => u.id === stored);
+    S.invited = !!params.join;
+    fillUsers();
+    if (!BOOT.users.length) startSignup();                     // chưa có ai → tạo tài khoản đầu tiên
+    else if (known && tok.get(stored)) renderUsers(stored);    // đã ghi nhớ trên máy này → vào thẳng
+    else showLogin(known ? stored : null);                     // còn lại: đăng nhập trước (link mời: nút tạo tài khoản nổi bật)
+  } catch (e) {
+    if (BOOT) fail(e);
+    else $('#main').insertAdjacentHTML('afterbegin', `<section class="card" id="bootErr" style="margin-top:16px">
+      <h2 style="font-size:18px">Chưa mở được app</h2><p class="muted">${esc(errMsg(e))}</p>
+      <button class="btn" style="width:100%" onclick="location.reload()">Thử lại</button></section>`);
+  }
+  document.body.classList.remove('loading');
+  loader.off();
+}
+
+/** Danh sách ~3.000 món lưu sẵn trên máy: chỉ tải lại khi Sheet có món mới / món bị sửa (mã foodsVer khác). */
+async function bootstrap() {
+  let saved = null;
+  try { saved = JSON.parse(store.get('calo.foods') || 'null'); } catch (e) {}
+  const ok = saved && saved.ver && Array.isArray(saved.foods);
+  const b = await api('getBootstrap', { foodsVer: ok ? saved.ver : '' });
+  if (b.foods) store.set('calo.foods', JSON.stringify({ ver: b.foodsVer, foods: b.foods }));
+  else b.foods = ok ? saved.foods : [];
+  return b;
+}
+
+/** Tham số trên link (?join=1). Trong Apps Script trang chạy trong iframe nên phải hỏi google.script.url. */
+function urlParams() {
+  return new Promise(resolve => {
+    const local = () => resolve(Object.fromEntries(new URLSearchParams(location.search)));
+    try { google.script.url.getLocation(l => resolve((l && l.parameter) || {})); setTimeout(local, 1500); } catch (e) { local(); }
+  });
+}
+
+
+function fillUsers() {
+  $('#userSel').innerHTML = BOOT.users.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+}
+function renderUsers(selectId) {
+  fillUsers();
+  if (!BOOT.users.length) return startSignup();
+  S.userId = BOOT.users.some(u => u.id === selectId) ? selectId : BOOT.users[0].id;
+  $('#userSel').value = S.userId;
+  store.set('calo.userId', S.userId);
+  syncAvatar();
+  openCurrent();
+}
+function syncAvatar() { $('#userAv').textContent = initial(userName()); }
+
+/** Có token trên máy này → vào thẳng; chưa có → hỏi PIN. */
+function openCurrent() { tok.get(S.userId) ? show(S.view) : showLock(); }
+
+// ---------------------------------------------------------------- các màn "cổng" (chưa vào hồ sơ)
+const GATES = ['#v-lock', '#v-signup'];
+function gate(sel) {
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  ['#datebar', '#tabs', '#lockBtn'].forEach(x => $(x).classList.add('hidden'));
+  GATES.forEach(g => $(g).classList.toggle('hidden', g !== sel));
+  ['#who', '#addUserBtn'].forEach(x => $(x).classList.add('hidden'));   // chọn tên + tạo tài khoản nằm ngay trong màn
+  window.scrollTo(0, 0);
+}
+/**
+ * Màn đầu tiên là Đăng nhập: chọn tên + PIN trên cùng một màn, "Tạo tài khoản mới" ở dưới.
+ * Có người được chọn sẵn (lần trước dùng trên máy này) thì hiện thẳng ô PIN. Link mời (?join=1) chỉ làm nổi nút tạo tài khoản.
+ */
+function showLogin(id) {
+  if (!BOOT.users.length) return startSignup();
+  const u = id && BOOT.users.find(x => x.id === id);
+  if (u) { S.userId = u.id; $('#userSel').value = u.id; store.set('calo.userId', u.id); syncAvatar(); }
+  gate('#v-lock');
+  renderLogin(u || null);
+}
+const showWelcome = () => showLogin(null), showPick = () => showLogin(null), showLock = () => showLogin(S.userId);
+function renderLogin(u) {
+  $('#inviteNote').classList.toggle('hidden', !S.invited);
+  $('#toSignup').classList.toggle('sec', !S.invited);
+  $('#lockForm').classList.toggle('hidden', !u);
+  $('#lockSub').textContent = u ? (u.hasPin ? 'Nhập mã PIN để vào.' : 'Hồ sơ này chưa có PIN. Mã bạn nhập bây giờ sẽ thành PIN.')
+    : 'Chọn tên của bạn rồi nhập mã PIN.';
+  if (u) {
+    $('#loginWho').innerHTML = `<div class="who-card"><span class="av">${esc(initial(u.name))}</span>
+      <div class="grow"><b>${esc(u.name)}</b><small>${u.hasPin ? 'Mã PIN 4–6 số' : 'Đặt PIN mới'}</small></div>
+      <button type="button" class="lnk" onclick="showLogin(null)">Đổi người</button></div>`;
+    $('#pinBtn').textContent = u.hasPin ? 'Đăng nhập' : 'Đặt PIN và vào';
+    $('#lockForgot').classList.toggle('hidden', !u.hasPin);
+    $('#pinIn').value = ''; $('#rememberMe').checked = true;
+    setTimeout(() => $('#pinIn').focus(), 50);
+    return;
+  }
+  $('#loginWho').innerHTML = (BOOT.users.length > 6
+    ? '<input id="loginQ" class="login-q" placeholder="Tìm tên của bạn" autocomplete="off" aria-label="Tìm tên" oninput="filterLogin(this.value)">' : '')
+    + '<ul class="list login-list" id="loginList"></ul>';
+  filterLogin('');
+}
+function filterLogin(q) {
+  const k = norm(q).trim(), mem = u => !!tok.get(u.id);
+  const users = BOOT.users.filter(u => !k || norm(u.name).includes(k)).sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
+  const row = u => `<li onclick="pickUser('${u.id}')"><span class="av">${esc(initial(u.name))}</span>
+    <span class="grow name">${esc(u.name)}</span>${mem(u) ? '<span class="badge-s">Vào thẳng</span>' : ''}<span class="muted">${icon('right')}</span></li>`;
+  const saved = users.filter(mem), rest = users.filter(u => !mem(u));
+  $('#loginList').innerHTML = !users.length ? '<li class="muted">Không thấy tên này. Kiểm tra lại, hoặc tạo tài khoản mới bên dưới.</li>'
+    : saved.length ? `<li class="sec-h">Đã ghi nhớ trên máy này</li>${saved.map(row).join('')}`
+      + (rest.length ? `<li class="sec-h">Tài khoản khác</li>${rest.map(row).join('')}` : '')
+    : rest.map(row).join('');
+}
+function pickUser(id) {
+  S.userId = id; $('#userSel').value = id; store.set('calo.userId', id); syncAvatar(); openCurrent();
+}
+
+$('#lockForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const btn = $('#pinBtn'); btn.disabled = true;
+  loader.on('Đang đăng nhập…');
+  try {
+    const r = await api('login', S.userId, $('#pinIn').value);
+    tok.set(S.userId, r.token, $('#rememberMe').checked);
+    const u = BOOT.users.find(x => x.id === S.userId); if (u) u.hasPin = true;
+    if (r.created) toast('Đã đặt PIN cho hồ sơ');
+    show(S.view);
+  } catch (e) {
+    toast(errMsg(e), 4000, true);
+    $('#pinIn').value = ''; $('#pinIn').focus();
+  }
+  loader.off();                                   // show() đã tự giữ màn chờ nếu còn đang tải ngày
+  btn.disabled = false;
+});
+
+function show(v) {
+  S.view = v;
+  GATES.forEach(g => $(g).classList.add('hidden'));
+  ['#tabs', '#lockBtn', '#who', '#addUserBtn'].forEach(s => $(s).classList.remove('hidden'));
+  document.querySelectorAll('nav.tabs button').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === v);
+    b.setAttribute('aria-current', b.dataset.v === v ? 'page' : 'false');
+  });
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('hidden', s.id !== 'v-' + v));
+  $('#datebar').classList.toggle('hidden', !['today', 'food', 'ex'].includes(v));
+  window.scrollTo(0, 0);
+  if (v === 'week') loadWeek(); else if (v === 'profile') loadProfile(); else loadDay();
+}
+
+async function loadDay() {
+  $('#dateLabel').textContent = fmtDate(S.date);
+  $('#datePick').value = S.date; $('#datePick').max = BOOT.today;
+  $('#nextDay').disabled = S.date >= BOOT.today;
+  $('#todayLink').classList.toggle('hidden', S.date === BOOT.today);
+  const date = S.date, uid = S.userId, opts = { place: S.place[date] || '' };
+  await swr(`${uid}|day|${date}|${opts.place}`, () => api('getDay', auth(), date, opts),
+    d => { DAY = d; renderToday(); renderFood(); renderEx(); },
+    () => S.userId === uid && S.date === date, $('#main'));
+  if (DAY && DAY.date === date) prefetchOnce();
+}
+function setDate(d) { S.date = d > BOOT.today ? BOOT.today : d; loadDay(); }
+const localDay = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+let bootDay = localDay();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !BOOT) return;
+  const shift = Math.round((localDay() - bootDay) / 864e5);
+  if (shift <= 0) return;
+  const was = BOOT.today;
+  BOOT.today = addDays(was, shift); bootDay = localDay();
+  if (S.date === was) S.date = BOOT.today;
+  if (S.weekStart === mondayOf(was)) S.weekStart = mondayOf(BOOT.today);
+  if (!$('#tabs').classList.contains('hidden')) show(S.view);
+});
+function shiftDate(n) { setDate(addDays(S.date, n)); }
+
+// ================================================================ biểu đồ dùng chung
+/** 3 vòng đồng tâm (ngoài → trong), giữa là điểm ngày. */
+function ringsSvg(list, center, label) {
+  const sw = 13, gap = 4;
+  return `<svg class="rings" viewBox="0 0 148 148" role="img" aria-label="${esc(list.map(r => r.name + ' ' + Math.round(r.v * 100) + '%').join(', '))}">
+    ${list.map((r, i) => {
+      const rad = 74 - sw / 2 - 1 - i * (sw + gap), c = 2 * Math.PI * rad, v = clamp01(r.v);
+      return `<circle cx="74" cy="74" r="${rad}" fill="none" stroke="${r.c}" stroke-opacity=".16" stroke-width="${sw}"/>
+        ${v > 0 ? `<circle class="ring-arc" cx="74" cy="74" r="${rad}" fill="none" stroke="${r.c}" stroke-width="${sw}" stroke-linecap="round"
+          stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 74 74)"/>` : ''}`;
+    }).join('')}
+    <text x="74" y="80" text-anchor="middle" class="c-num">${center}</text>
+    <text x="74" y="95" text-anchor="middle" class="c-lbl">${label}</text></svg>`;
+}
+
+/** Lịch 4 tuần: mỗi ô một ngày, tô theo kết quả. */
+function heatGrid(history, current) {
+  const byDate = {}; history.forEach(h => { byDate[h.date] = h; });
+  const start = mondayOf(history[0].date), end = addDays(mondayOf(history[history.length - 1].date), 6);
+  const cells = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    const h = byDate[d];
+    const cls = !h ? 'void' : !h.eaten ? '' : h.eaten > h.target ? 'over' : h.complete ? 'ok' : 'part';
+    const tip = h ? `${ddmm(d)}: ${h.eaten ? nf(h.eaten) + ' / ' + nf(h.target) + ' kcal' : 'chưa ghi'}` : '';
+    cells.push(`<i class="${cls}${d === current ? ' today' : ''}" title="${tip}">${cls === 'over' ? flameSvg() : ''}</i>`);
+  }
+  return `<div class="heat">${['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(x => `<span class="h">${x}</span>`).join('')}${cells.join('')}</div>`;
+}
+
+/** Cột theo ngày + vạch mục tiêu. items: [{label, v, target, color, faded, title, strong}] */
+function barChart(items, opts) {
+  const W = 340, H = opts.h || 170, pl = 30, pb = 20, top = 16, n = items.length;
+  const max = Math.max(...items.map(d => Math.max(d.v, d.target || 0)), opts.min || 1) * 1.1;
+  const y = v => top + (H - pb - top) * (1 - v / max), bw = (W - pl) / n, id = 'g' + Math.random().toString(36).slice(2, 7);
+  const step = opts.step || (max > 2400 ? 1000 : max > 120 ? 500 : 15), ticks = [];
+  for (let v = 0; v <= max; v += step) ticks.push(v);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.aria)}">
+    <defs>${['go', 'flame', 'over', 'cyan'].map(c => `<linearGradient id="${id}-${c}" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="var(--${c})"/><stop offset="1" stop-color="var(--${c})" stop-opacity=".45"/></linearGradient>`).join('')}</defs>
+    ${ticks.map(v => `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/>
+      <text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${opts.tick ? opts.tick(v) : v}</text>`).join('')}
+    ${items.map((d, i) => { const x = pl + i * bw + bw * .2, w = bw * .6;
+      return `${d.v ? `<rect x="${x}" y="${y(d.v)}" width="${w}" height="${H - pb - y(d.v)}" rx="4"
+          fill="${d.faded ? 'var(--line-2)' : `url(#${id}-${d.color})`}"><title>${esc(d.title || '')}</title></rect>
+          ${opts.values ? `<text class="v" x="${x + w / 2}" y="${y(d.v) - 4}" text-anchor="middle">${opts.values(d.v)}</text>` : ''}
+          ${d.flame ? `<g transform="translate(${x + w / 2 - 7} ${y(d.v) - 17}) scale(.58)" fill="var(--red)">${ICONS.flame}</g>` : ''}` : ''}
+        ${d.target != null ? `<line x1="${x - 4}" x2="${x + w + 4}" y1="${y(d.target)}" y2="${y(d.target)}" stroke="var(--ink-2)"
+          stroke-width="2" stroke-linecap="round" ${opts.dashTarget ? 'stroke-dasharray="3 3"' : ''}/>` : ''}
+        <text x="${x + w / 2}" y="${H - 5}" text-anchor="middle" ${d.strong ? 'style="fill:var(--ink);font-weight:700"' : ''}>${d.label}</text>`; }).join('')}
+  </svg>`;
+}
+
+const notes = recs => `<ul class="notes">${recs.map(r => `<li data-tone="${r.tone}">${esc(r.text)}</li>`).join('')}</ul>`;
+const coach = recs => `<div class="coach"><div class="badge">${icon('whistle')}</div>${notes(recs)}</div>`;
+
+// ================================================================ HÔM NAY
+/** Câu thúc đẩy theo tình hình trong ngày. */
+function motivate(t, done, total, isToday) {
+  if (!isToday) return done === total ? 'Ngày này <em>hoàn hảo</em>' : 'Xem lại và <em>ghi bù</em>';
+  if (!t.eaten) return 'Ngày mới. <em>Ghi bữa đầu tiên</em> nào!';
+  if (t.eaten > t.target) return `Vượt ${nf(t.eaten - t.target)} kcal. <em>${walkMin(t.eaten - t.target, t.weight)} phút đi bộ</em> là cân bằng`;
+  if (done === total) return '<em>Hoàn hảo!</em> Đã xong mọi việc hôm nay';
+  if (t.minutes < t.exerciseGoal) return `Còn <em>${t.exerciseGoal - t.minutes} phút tập</em> để đóng vòng`;
+  if (t.waterMl < t.waterGoalMl) return `Thêm <em>${Math.ceil((t.waterGoalMl - t.waterMl) / (t.glassMl || 250))} ly nước</em> nữa thôi`;
+  if (done / total >= .7) return `Sắp về đích. <em>Còn ${total - done} việc</em>`;
+  return 'Giữ nhịp, <em>bạn đang làm tốt</em>';
+}
+
+function renderToday() {
+  const d = DAY, t = d.totals;
+  const auto = d.tasks.auto, manual = d.tasks.manual;
+  const isOn = x => x.done === true || x.done === 'TRUE';
+  const done = auto.filter(x => x.done).length + manual.filter(isOn).length;
+  const total = auto.length + manual.length, score = total ? Math.round(done / total * 100) : 0;   // việc trong tuần không tính vào điểm ngày
+  const over = t.eaten > t.target, remain = t.target - t.eaten;
+  const st = d.streak || { current: 0, best: 0 };
+  const hr = new Date().getHours(), greet = hr < 11 ? 'Chào buổi sáng' : hr < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  const mealColors = { 'Sáng': 'var(--cal-1)', 'Trưa': 'var(--cal-2)', 'Tối': 'var(--cal-3)', 'Phụ': 'var(--cal-4)' };
+  const scale = Math.max(t.target, t.eaten) || 1;
+  const macroE = { p: t.protein * 4, c: t.carb * 4, f: t.fat * 9 }, macroT = macroE.p + macroE.c + macroE.f || 1;
+
+  $('#v-today').innerHTML = `
+    <section class="hello">
+      <div><div class="kicker">${d.isToday ? greet + ', ' + esc(userName()) : fmtDate(d.date)}</div>
+        <h1 class="headline">${motivate(t, done, total, d.isToday)}</h1></div>
+      <div class="streak" title="Kỷ lục: ${st.best} ngày">
+        <span class="flame${st.current ? '' : ' cold'}">${icon('flame')}</span>
+        <div><b class="num">${st.current}</b><small>ngày<br>liên tiếp</small></div></div>
+    </section>
+
+    <section class="card hero">
+      ${ringsSvg([
+        { name: 'Calo', v: t.target ? t.eaten / t.target : 0, c: 'var(--flame)' },
+        { name: 'Tập', v: t.exerciseGoal ? t.minutes / t.exerciseGoal : 0, c: 'var(--go)' },
+        { name: 'Nước', v: t.waterGoalMl ? t.waterMl / t.waterGoalMl : 0, c: 'var(--cyan)' },
+      ], score, 'điểm')}
+      <div class="remain${over ? ' over' : ''}">
+        <div class="k">${over ? icon('flame') + 'Đã vượt' : 'Còn ăn được'}</div>
+        <span class="num">${nf(Math.abs(remain))}<small>kcal</small></span>
+        <div class="leg">
+          <div><i style="background:var(--flame)"></i><span>Calo</span><b>${nf(t.eaten)}<small> / ${nf(t.target)}</small></b></div>
+          <div><i style="background:var(--go)"></i><span>Tập</span><b>${t.minutes}<small> / ${t.exerciseGoal} phút</small></b></div>
+          <div><i style="background:var(--cyan)"></i><span>Nước</span><b>${liters(t.waterMl)}<small> / ${liters(t.waterGoalMl)} l</small></b></div>
+        </div>
+      </div>
+    </section>
+
+    ${deficitCard(t)}
+
+    <div class="tiles" style="grid-template-columns:1fr 1fr">
+      <div class="tile"><span class="k">Đốt thêm</span><span class="num">${nf(t.burned)}<small> kcal</small></span>
+        <span class="sub">${t.eatBack ? '+' + nf(t.eatBack) + ' vào mục tiêu' : 'từ buổi tập'}</span></div>
+      <div class="tile"><span class="k">Đạm</span><span class="num">${Math.round(t.protein)}<small>/${t.proteinTarget}g</small></span>
+        <div class="bar"><i style="width:${clamp01(t.protein / t.proteinTarget) * 100}%;background:var(--go)"></i></div></div>
+    </div>
+
+    <div class="sect"><h2>Nước</h2></div>
+    <section class="card" id="waterCard"></section>
+
+    <div class="sect"><h2>4 tuần qua</h2><span class="meta">Kỷ lục ${st.best} ngày</span></div>
+    <section class="card">
+      ${heatGrid(d.history, d.date)}
+      <div class="heat-foot"><div class="keys"><span><i style="background:var(--go)"></i>Đạt</span><span><i style="background:var(--over)"></i>${flameSvg('fl')}Vượt</span>
+        <span><i style="background:var(--line-2)"></i>Ghi thiếu</span><span><i style="background:var(--track);outline:1px solid var(--line)"></i>Chưa ghi</span></div></div>
+    </section>
+
+    <div class="sect"><h2>Bữa ăn</h2><span class="meta">${nf(t.eaten)} / ${nf(t.target)} kcal</span></div>
+    <section class="card">
+      <div class="stack" role="img" aria-label="Phân bổ calo theo bữa">${d.byMeal.filter(m => m.kcal).map(m =>
+        `<i style="width:${m.kcal / scale * 100}%;background:${mealColors[m.meal]}" title="${m.meal}: ${nf(m.kcal)} kcal"></i>`).join('')}</div>
+      <div class="rows">${d.byMeal.map(m => {
+        const items = d.foods.filter(f => f.meal === m.meal).map(f => f.food), main = m.meal !== 'Phụ';
+        const sub = items.length ? esc(items.join(', ')) : m.skipped ? 'Bỏ bữa (không ăn)' : 'Chưa ghi · chạm để thêm';
+        const right = m.kcal ? nf(m.kcal) + '<small> kcal</small>'
+          : m.skipped ? `<button class="mini" onclick="event.stopPropagation();setSkip('${m.meal}', false)">Hoàn tác</button>`
+          : main ? `<button class="mini" onclick="event.stopPropagation();setSkip('${m.meal}', true)">Bỏ bữa</button>${icon('plus')}` : icon('plus');
+        return `<div class="link${m.skipped ? ' skipped' : ''}" onclick="goMeal('${m.meal}')"><i style="background:${mealColors[m.meal]}"></i>
+          <span><b>${m.meal}</b><span class="sub">${sub}</span></span>
+          <span class="v">${right}</span></div>`;
+      }).join('')}</div>
+      ${!t.complete && t.why && (t.eaten || (d.skipped || []).length)
+        ? `<div class="hint">Ngày này chưa tính vào báo cáo tuần: ${esc(t.why)}. Không ăn bữa nào thì chạm "Bỏ bữa" ở bữa đó.</div>` : ''}
+    </section>
+
+    <div class="sect"><h2>Năng lượng từ</h2><span class="meta">Đạm · Tinh bột · Béo</span></div>
+    <section class="card">
+      <div class="stack" role="img" aria-label="Tỷ lệ năng lượng từ đạm, tinh bột, chất béo">${t.eaten ? `
+        <i style="width:${macroE.p / macroT * 100}%;background:var(--go)"></i>
+        <i style="width:${macroE.c / macroT * 100}%;background:var(--volt-ink)"></i>
+        <i style="width:${macroE.f / macroT * 100}%;background:var(--amber)"></i>` : ''}</div>
+      <div class="rows">
+        <div><i style="background:var(--go)"></i><span>Đạm<span class="sub">mục tiêu ${t.proteinTarget} g</span></span>
+          <span class="v">${Math.round(t.protein)} g <small>${Math.round(macroE.p / macroT * 100)}%</small></span></div>
+        <div><i style="background:var(--volt-ink)"></i><span>Tinh bột<span class="sub">nên 45–55%</span></span>
+          <span class="v">${Math.round(t.carb)} g <small>${Math.round(macroE.c / macroT * 100)}%</small></span></div>
+        <div><i style="background:var(--amber)"></i><span>Chất béo<span class="sub">tối đa 35%</span></span>
+          <span class="v">${Math.round(t.fat)} g <small>${Math.round(macroE.f / macroT * 100)}%</small></span></div>
+      </div>
+    </section>
+
+    <div class="sect"><h2>${d.isToday ? 'Nhiệm vụ hôm nay' : 'Nhiệm vụ trong ngày'}</h2><span class="meta">${done}/${total} · ${score} điểm</span></div>
+    <section class="card">
+      <div class="segs" style="--n:${total}">${Array.from({ length: total }, (_, i) => `<i class="${i < done ? 'on' : ''}"></i>`).join('')}</div>
+      ${manual.length ? `<div class="tgrp">Bạn tự đánh dấu<small>Chạm để tick</small></div>
+      <ul class="list tasks">
+        ${manual.map(x => { const on = isOn(x);
+          return `<li class="${on ? 'done' : ''}"><button class="trow" onclick="toggleTask('${x.id}', ${!on})" role="checkbox" aria-checked="${on}">
+            <span class="ck ${on ? 'ok' : ''}">${on ? icon('check') : ''}</span>
+            <span class="grow name">${esc(x.task)}</span>${x.source === 'Gợi ý' ? '<span class="tag">Thử thách</span>' : ''}</button></li>`; }).join('')}
+      </ul>` : ''}
+      ${(d.tasks.week || []).length ? `<div class="tgrp">Trong tuần này<small>Tự chấm · chạm để mở</small></div>
+      <ul class="list tasks">
+        ${d.tasks.week.map(x => `<li class="${x.done ? 'done' : ''}"><button class="trow" onclick="goTask('${x.go || ''}')">
+          <span class="st ${x.done ? 'ok' : ''}">${x.done ? icon('check') : ''}</span>
+          <span class="grow name">${esc(x.task)}</span><span class="sub">${esc(x.detail || '')}</span><span class="chev">${icon('right')}</span></button></li>`).join('')}
+      </ul>` : ''}
+      <div class="tgrp">Tự chấm theo nhật ký<small>Chạm để đi tới chỗ ghi</small></div>
+      <ul class="list tasks">
+        ${auto.map(x => `<li class="${x.done ? 'done' : ''}"><button class="trow" onclick="goTask('${x.go || ''}')">
+          <span class="st ${x.done ? 'ok' : x.fail ? 'fail' : ''}">${x.done ? icon('check') : x.fail ? icon('flame', 'fill') : ''}</span>
+          <span class="grow name">${esc(x.task)}</span><span class="sub">${esc(x.detail || '')}</span><span class="chev">${icon('right')}</span></button></li>`).join('')}
+      </ul>
+      ${!d.isToday && manual.length ? '<div class="hint">Ngày cũ vẫn đánh dấu bù được.</div>' : ''}
+    </section>
+
+    <div class="sect"><h2>Huấn luyện viên</h2></div>
+    <section class="card">${coach(d.recs)}</section>`;
+  renderWater();
+}
+function goMeal(m) { S.meal = m; show('food'); }
+
+/** Thẻ thâm hụt: số lớn + thanh so với mức thâm hụt cần mỗi ngày (theo tốc độ giảm đã chọn). */
+function deficitCard(t) {
+  const need = Math.max(t.tdee - t.baseTarget, 1), d = t.deficit;
+  const surplus = t.eaten && d < 0, reached = t.eaten && d >= need;
+  const chip = !t.eaten ? '' : surplus ? `<span class="chip-s warn">${flameSvg('fl')}Dư calo</span>`
+    : !t.complete ? '<span class="chip-s">Tạm tính</span>' : reached ? '<span class="chip-s">Đạt mục tiêu</span>' : '';
+  return `<section class="card deficit">
+    <div class="dh"><span class="k">${surplus ? 'Dư calo hôm nay' : 'Thâm hụt calo'}</span>${chip}</div>
+    <div class="dv"><span class="num">${!t.eaten ? '–' : (surplus ? '+' : '') + nf(Math.abs(d))}</span><small>kcal</small>
+      <span class="fat">${t.eaten && !surplus ? `<b>≈ ${nf(t.fatLossG)} g</b>mỡ được đốt` : surplus ? '<b>0 g</b>mỡ giảm' : ''}</span></div>
+    <div class="dbar" role="img" aria-label="Thâm hụt ${nf(d)} trên mục tiêu ${nf(need)} kcal"><i style="width:${t.eaten && !surplus ? clamp01(d / need) * 100 : 0}%"></i></div>
+    <div class="dfoot"><span>Cần khoảng <b>${nf(need)}</b> kcal/ngày</span>
+      <span>${!t.eaten ? 'Ghi bữa ăn để tính' : surplus ? 'Đi bộ ' + walkMin(-d, t.weight) + ' phút để cân bằng' : reached ? 'Vượt ' + nf(d - need) + ' kcal' : 'Còn ' + nf(need - d) + ' kcal'}</span></div>
+  </section>`;
+}
+const flameSvg = cls => `<svg class="${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICONS.flame}</svg>`;
+
+// ================================================================ NƯỚC
+const liters = ml => dec(Math.round((ml || 0) / 10) / 100, 2);
+function renderWater() {
+  const t = DAY.totals, goal = t.waterGoalMl || 2000, glass = t.glassMl || 250;
+  const cups = Math.max(Math.ceil(goal / glass), 1), filled = Math.min(Math.floor(t.waterMl / glass), cups);
+  const done = t.waterMl >= goal;
+  $('#waterCard').innerHTML = `
+    <div class="water-h"><span class="num">${liters(t.waterMl)}<small> / ${liters(goal)} lít</small></span>
+      <span class="small ${done ? 'pos' : 'muted'}" style="font-weight:700">${done ? 'Đã đủ nước' : 'Còn ' + Math.ceil((goal - t.waterMl) / glass) + ' ly'}</span></div>
+    <div class="drops" style="--n:${cups}" role="img" aria-label="Đã uống ${filled} trên ${cups} ly">
+      ${Array.from({ length: cups }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="wbtns">
+      <button class="btn sec icon" onclick="water(0)" aria-label="Bỏ lần thêm nước gần nhất" ${t.waterMl ? '' : 'disabled'}>${icon('minus')}</button>
+      <button class="btn cyan" onclick="water(${glass})">${icon('plus')} 1 ly <small>${glass} ml</small></button>
+      <button class="btn sec" onclick="water(500)">+ 500 ml</button>
+    </div>`;
+}
+let waterQueue = Promise.resolve(), waterTimer = null;
+/** Cập nhật ngay trên màn hình, gửi lên server theo thứ tự, rồi tải lại ngày khi đã bấm xong. */
+function water(ml) {
+  const t = DAY.totals, before = t.waterMl;
+  if (!ml && !before) return;
+  if (ml) t.waterMl += ml;
+  renderWater();
+  const date = S.date;
+  waterQueue = waterQueue.then(() => (ml ? api('addWater', auth(), { date, ml }) : api('undoWater', auth(), date)))
+    .then(r => { if (S.date === date) { DAY.totals.waterMl = r.ml; renderWater(); } })
+    .catch(e => { DAY.totals.waterMl = before; renderWater(); fail(e); });
+  clearTimeout(waterTimer);
+  waterTimer = setTimeout(() => waterQueue.then(refreshDay), 900);
+}
+/** Tải lại dữ liệu ngày mà không làm mờ màn hình. */
+async function refreshDay() {
+  const date = S.date, uid = S.userId, opts = { place: S.place[date] || '' }, key = `${uid}|day|${date}|${opts.place}`;
+  try {
+    const d = await api('getDay', auth(), date, opts);
+    CACHE[key] = { data: d, at: Date.now() };
+    if (S.userId === uid && S.date === date) { DAY = d; renderToday(); renderFood(); renderEx(); $('#main').shown = key; $('#main').shownData = d; }
+  } catch (e) { fail(e); }
+}
+
+/** Tick hiện ngay, lưu ở nền (theo hàng đợi để bấm nhanh liên tục vẫn đúng thứ tự); lỗi thì trả lại như cũ. */
+let taskQueue = Promise.resolve();
+function toggleTask(id, val) {
+  const t = DAY.tasks.manual.find(x => x.id === id);
+  if (!t) return;
+  const before = t.done, day = DAY;
+  t.done = val; renderToday();
+  taskQueue = taskQueue.then(() => api('toggleTask', auth(), id, val))
+    .catch(e => { t.done = before; if (DAY === day) renderToday(); fail(e); });
+}
+/** Task tự chấm: chạm để tới đúng chỗ ghi (bữa ăn, tập, nước, cân nặng). */
+function goTask(go) {
+  const [v, meal] = String(go).split(':');
+  if (v === 'food') return meal ? goMeal(meal) : show('food');
+  if (v === 'ex') return show('ex');
+  if (v === 'body') return goProfile('#bodyForm');
+  if (v === 'water') return $('#waterCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (v === 'weight') goProfile('#wKg', el => { const d = $('#wDate'); d.value = S.date; d.dispatchEvent(new Event('input')); });   // task của ngày đang xem
+}
+/** Mở tab Cơ thể rồi cuộn tới 1 ô khi trang đã vẽ xong. */
+function goProfile(sel, then) {
+  show('profile');
+  let n = 0; const h = setInterval(() => {
+    const el = $(sel);
+    if (el || ++n > 50) { clearInterval(h); if (!el) return; if (then) then(el); el.scrollIntoView({ block: 'center' }); if (el.focus) el.focus(); }
+  }, 100);
+}
+
+// ================================================================ ĂN UỐNG
+const rowActs = (kind, id) => `<span class="acts">
+  <button onclick="openEdit('${kind}','${id}')" aria-label="Sửa">${icon('edit')}</button>
+  <button onclick="del('${kind}','${id}')" aria-label="Xoá">${icon('x')}</button></span>`;
+
+const FRACS = [[1, 'Hết suất'], [0.75, '¾'], [0.5, '½'], [0.25, '¼']];
+const FS = { addons: [], frac: 1 };             // trạng thái form: phần thêm đang chọn + ăn được bao nhiêu
+let SUG = [], sugIdx = -1;
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase();
+const toks = s => norm(s).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+const addonsOf = name => (BOOT.addons || []).filter(a => norm(a.dish) === norm(name));
+const GENERIC = ['them', 'it', 'khong', 'bot'];
+function fmtServ(n) {
+  const r = Math.round(n * 100) / 100, m = { 0.25: '¼', 0.33: '⅓', 0.5: '½', 0.67: '⅔', 0.75: '¾', 1.25: '1¼', 1.5: '1½', 1.75: '1¾' };
+  return (m[r] || dec(r, 2)) + ' suất';
+}
+
+/**
+ * Tìm món không dấu, chấm điểm theo:
+ *  - số chữ của tên món có trong câu gõ (cho phép thiếu chữ: "banh mi pate" → Bánh mì thịt)
+ *  - chữ còn lại khớp phần thêm/bớt ("com tam suon bi cha" → + bì + chả trứng, "tra sua it duong" → + ít đường)
+ *  - trừ điểm cho chữ không giải thích được, cộng điểm khi đang gõ dở đầu tên món ("com ta")
+ */
+/** Viết tắt / tên gọi khác → chữ có trong tên món (so trên chữ không dấu, cả cụm). */
+const ALIASES = {
+  cf: 'ca phe', cafe: 'ca phe', caphe: 'ca phe', coffee: 'ca phe', cfs: 'ca phe sua', cfd: 'ca phe den', cfsd: 'ca phe sua',
+  ts: 'tra sua', trasua: 'tra sua', milktea: 'tra sua', tc: 'tran chau', bx: 'bac xiu', bm: 'banh mi', banhmi: 'banh mi',
+  coca: 'coca cola', coke: 'coca cola', '7up': 'sprite 7up', redbull: 'nuoc tang luc', mcd: 'mcdonald', mcdonalds: 'mcdonald', 'mc donald': 'mcdonald', bk: 'burger king',
+  pizzahut: 'pizza hut', circlek: 'circle k', 'circle k': 'circle k', haohao: 'hao hao', phuclong: 'phuc long', '711': '7 eleven',
+  'seven eleven': '7 eleven', '7 11': '7 eleven', 'gs 25': 'gs25', coffeehouse: 'coffee house', highland: 'highlands',
+  yaourt: 'sua chua', yogurt: 'sua chua', yaout: 'sua chua', 'hu tiu': 'hu tieu', hutieu: 'hu tieu', 'mi goi': 'mi tom mi goi',
+  'nem ran': 'cha gio nem ran', icecream: 'kem', beer: 'bia', sinhto: 'sinh to', nuocep: 'nuoc ep', 'nuoc cam': 'nuoc ep cam',
+  oolong: 'o long', olong: 'o long', matcha: 'matcha', capu: 'cappuccino', latte: 'latte', th: 'th',
+  ko: 'khong', k: 'khong', kh: 'khong', dg: 'duong', 'it dg': 'it duong', 'trung op la': 'op la', smoothie: 'sinh to', juice: 'nuoc ep',
+};
+// thay một lượt, cụm dài trước → "circle k" giữ nguyên, không bị "k" (= không) thay tiếp
+const ALIAS_RE = new RegExp('(^| )(' + Object.keys(ALIASES).sort((a, b) => b.length - a.length).join('|') + ')(?= |$)', 'g');
+function expandQuery(q) {
+  return norm(q).replace(/[^a-z0-9]+/g, ' ').trim().replace(ALIAS_RE, (m, sp, k) => sp + ALIASES[k]);
+}
+/** Từ điển chữ có trong tên món (kèm số lần xuất hiện) – để sửa chữ gõ sai / gõ dính liền. */
+let VOCAB = null;
+function vocab() {
+  if (VOCAB) return VOCAB;
+  VOCAB = new Map();
+  BOOT.foods.map(f => f.name).concat((BOOT.addons || []).map(a => a.addon)).forEach(n => toks(n).forEach(t => VOCAB.set(t, (VOCAB.get(t) || 0) + 1)));
+  return VOCAB;
+}
+/** Khác nhau đúng 1 chữ cái (thêm, bớt, đổi, hoặc đảo 2 chữ liền nhau). */
+function edit1(a, b) {
+  if (a === b) return true;
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > 1) return false;
+  let i = 0; while (i < la && i < lb && a[i] === b[i]) i++;
+  if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+/** "phobo" → "pho bo", "bunn" → "bun", "trug" → "trung" (chỉ đổi chữ không có trong danh sách món). */
+function correctQuery(q) {
+  const V = vocab();
+  const split = (t, d) => {
+    if (V.has(t)) return t;
+    if (d > 3) return null;
+    for (let i = 2; i <= t.length - 2; i++) {
+      if (!V.has(t.slice(0, i))) continue;
+      const rest = split(t.slice(i), d + 1);
+      if (rest) return t.slice(0, i) + ' ' + rest;
+    }
+    return null;
+  };
+  return toks(q).map(t => {
+    if (V.has(t) || t.length < 3) return t;
+    const parts = t.length >= 5 && split(t, 1);
+    if (parts) return parts;
+    if (t.length < 4) return t;
+    let best = null;
+    V.forEach((n, v) => { if (v.length >= 3 && edit1(t, v) && (!best || n > V.get(best))) best = v; });
+    return best || t;
+  }).join(' ');
+}
+/** Gõ tắt đầu chữ: "bun th nu" → Bún thịt nướng (mỗi chữ gõ là đầu một chữ trong tên, đúng thứ tự). */
+function abbrevFoods(q, favs) {
+  const qt = toks(q); if (qt.length < 2) return [];
+  const out = [];
+  BOOT.foods.forEach(f => {
+    const ft = toks(f.name); let j = 0;
+    const ok = qt.every(t => { while (j < ft.length && !ft[j].startsWith(t)) j++; return j++ < ft.length; });
+    if (ok) out.push({ f, addons: [], score: 1 + qt.length - ft.length * 0.1 + (favs.includes(norm(f.name)) ? 1.5 : 0) });
+  });
+  return out.sort((a, b) => b.score - a.score);
+}
+/**
+ * Tìm món: viết tắt/tên gọi khác → chấm điểm như cũ; ít kết quả thì thử sửa chữ gõ sai, rồi gõ tắt đầu chữ.
+ * Món bạn hay ăn được cộng điểm.
+ */
+function searchFoods(q) {
+  const eq = expandQuery(q), favs = ((DAY && DAY.favorites) || []).map(f => norm(f.food));
+  let r = rankFoods(eq);
+  const add = more => { const seen = new Set(r.map(x => x.f.name)); r = r.concat(more.filter(x => !seen.has(x.f.name))); };
+  if (r.length < 3) { const fixed = correctQuery(eq); if (fixed !== eq) add(rankFoods(fixed)); }
+  if (r.length < 3) add(abbrevFoods(eq, favs));
+  return r.slice(0, 8);
+}
+function rankFoods(q) {
+  const qt = toks(q); if (!qt.length) return [];
+  const nq = norm(q).trim(), favs = ((DAY && DAY.favorites) || []).map(f => norm(f.food));
+  const nonGeneric = ts => ts.filter(t => GENERIC.indexOf(t) < 0);
+  const out = [];
+  BOOT.foods.forEach(f => {
+    const ft = toks(f.name);
+    const matched = ft.filter(t => qt.includes(t)).length;
+    const prefix = qt.every((t, i) => (i === qt.length - 1 ? ft.some(x => x.startsWith(t)) : ft.includes(t)));
+    if (!prefix && !(matched >= Math.min(2, ft.length) && matched / ft.length >= .5)) return;
+    // chữ còn lại: trừ đúng 1 lần mỗi chữ của tên món
+    const extra = ft.reduce((rest, t) => { const i = rest.indexOf(t); if (i >= 0) rest.splice(i, 1); return rest; }, qt.slice());
+    const used = new Set(), addons = [];
+    const free = ts => ts.length && ts.every(t => extra.includes(t) && !used.has(t));
+    // khớp phần thêm theo từng lượt, chặt trước lỏng sau; chữ đã dùng không dùng lại
+    const rules = [
+      (at) => free(at) && at,                                                  // trọn tên: "them com", "it duong"
+      (at, own) => free(nonGeneric(own)) && nonGeneric(own),                   // phần riêng: "Thêm thịt bò" → [thit]
+      (at, own) => !nonGeneric(own).length && free(own) && own,                // "Không trân châu" → [khong]
+      (at) => GENERIC.indexOf(at[0]) < 0 && free([at[0]]) && [at[0]],          // chữ đầu: "chả" → Chả trứng
+    ];
+    if (!prefix || matched === ft.length) {
+      const list = addonsOf(f.name).map(a => ({ a, at: toks(a.addon) })).map(x => Object.assign(x, { own: x.at.filter(t => !ft.includes(t)) }));
+      rules.forEach(rule => list.forEach(x => {
+        if (addons.includes(x.a.addon)) return;
+        const hit = rule(x.at, x.own);
+        if (!hit) return;
+        hit.forEach(t => used.add(t));
+        addons.push(x.a.addon);
+      }));
+    }
+    const unexplained = prefix && matched < ft.length ? 0 : extra.filter(t => !used.has(t)).length;
+    const score = matched * 2 + used.size * 1.5 - unexplained - (ft.length - matched) * .5
+      + (prefix ? 2 : 0) + (norm(f.name).startsWith(nq) ? 2 : 0) + (favs.includes(norm(f.name)) ? 1.5 : 0);
+    if (score > 0) out.push({ f, addons, score });
+  });
+  return out.sort((a, b) => b.score - a.score);
+}
+/** Duyệt món theo nhóm khi ô tìm còn trống (Đồ uống, Ăn vặt, ...). */
+const GROUP_ORDER = ['Món chính', 'Tinh bột', 'Đạm', 'Rau', 'Trái cây', 'Đồ uống', 'Đồ ngọt/Có đường', 'Ăn vặt', 'Đồ ăn nhanh', 'Đồ uống có cồn', 'Gia vị, nước chấm'];
+const GROUP_LABEL = { 'Đồ uống': 'Đồ uống không đường', 'Đồ ngọt/Có đường': 'Đồ ngọt, trà sữa, nước có đường', 'Đồ uống có cồn': 'Bia, rượu',
+                      'Tự tra (100g)': 'Đã tra online', 'Người dùng nhập': 'Nhập tay', 'Đồ ăn nhanh': 'Đồ ăn nhanh, quốc tế' };
+let GROUPS = [], openGroup = -1;
+function renderGroups() {
+  const box = $('#groupBox');
+  if ($('#foodIn').value.trim()) { box.innerHTML = ''; return; }
+  const count = {};
+  BOOT.foods.forEach(f => { count[f.group] = (count[f.group] || 0) + 1; });
+  const rank = g => { const i = GROUP_ORDER.indexOf(g); return i < 0 ? 99 : i; };
+  GROUPS = Object.keys(count).sort((a, b) => rank(a) - rank(b));
+  const g = GROUPS[openGroup];
+  const list = g ? BOOT.foods.filter(f => f.group === g).sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi')) : [];
+  box.innerHTML = `<div class="lbl-s">Duyệt theo nhóm · ${BOOT.foods.length} món</div>
+    <div class="chips">${GROUPS.map((x, i) => `<button class="chip${i === openGroup ? ' on' : ''}" onclick="toggleGroup(${i})">${esc(GROUP_LABEL[x] || x)}<span>${count[x]}</span></button>`).join('')}</div>
+    ${g ? `<ul class="list browse">${list.map(f => `<li onclick="browsePick(this.dataset.n)" data-n="${esc(f.name)}"><div class="grow"><div class="name">${esc(f.name)}</div>
+      <div class="sub">${esc(f.serving)}</div></div><span class="kc">${nf(f.kcal)}<small>kcal</small></span></li>`).join('')}</ul>` : ''}`;
+}
+function toggleGroup(i) { openGroup = openGroup === i ? -1 : i; renderGroups(); }
+function browsePick(name) {
+  openGroup = -1;
+  const el = $('#foodIn'); el.value = name; onFoodInput();
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function currentFood() {
+  const n = norm($('#foodIn').value.trim());
+  return n ? BOOT.foods.find(x => norm(x.name) === n) || null : null;
+}
+
+function onFoodInput() {
+  closeOnline();
+  const exact = currentFood();
+  SUG = exact ? [] : searchFoods($('#foodIn').value);
+  sugIdx = -1;
+  FS.addons = exact ? FS.addons.filter(a => addonsOf(exact.name).some(x => x.addon === a)) : [];
+  $('#foodClear').classList.toggle('hidden', !$('#foodIn').value);
+  renderGroups();
+  renderSug(); renderDish();
+}
+const sugOpen = () => $('#foodIn').value.trim().length >= 2 && !currentFood() && !ONLINE;
+function renderSug() {
+  const box = $('#sugBox'), q = $('#foodIn').value.trim(), open = sugOpen();
+  box.classList.toggle('hidden', !open);
+  $('#foodIn').setAttribute('aria-expanded', open);
+  if (!open) return;
+  box.innerHTML = SUG.map((g, i) => {
+    const kcal = g.f.kcal + addonsOf(g.f.name).filter(a => g.addons.includes(a.addon)).reduce((t, a) => t + a.kcal, 0);
+    const more = addonsOf(g.f.name).length;
+    return `<li role="option" id="sug${i}" aria-selected="${i === sugIdx}" class="${i === sugIdx ? 'act' : ''}" onmousedown="event.preventDefault();pickFood(${i})">
+      <div class="grow"><div class="name">${esc(g.f.name)}<span class="add">${g.addons.length ? ' + ' + esc(g.addons.map(lc).join(' + ')) : ''}</span></div>
+      <div class="sub">${esc(g.f.serving)}${more ? ' · có ' + more + ' lựa chọn thêm/bớt' : ''}</div></div>
+      <span class="kc">${nf(kcal)}<small>kcal</small></span></li>`;
+  }).join('') + `<li role="option" id="sug${SUG.length}" aria-selected="${sugIdx === SUG.length}" class="online-row${sugIdx === SUG.length ? ' act' : ''}"
+      onmousedown="event.preventDefault();openOnline()"><span class="oi">${icon('search')}</span>
+      <div class="grow"><div class="name">Tra trên mạng: “${esc(q)}”</div>
+      <div class="sub">${SUG.length ? 'Không thấy món đúng ý? ' : 'Chưa có trong danh sách. '}Xem kết quả USDA · Open Food Facts để chọn</div></div></li>`;
+}
+
+// ---------------------------------------------------------------- tra trên mạng (món chưa có trong sheet)
+let ONLINE = null;
+/**
+ * Tra món chưa có: hỏi song song Gemini (ước tính theo khẩu phần người Việt, có tra Google) và USDA / Open Food Facts (trên 100 g).
+ * Món bạn chọn hoặc tự nhập được lưu vào danh sách chung – lần sau mọi người tìm thấy ngay.
+ */
+async function openOnline() {
+  const q = $('#foodIn').value.trim();
+  if (q.length < 2) return toast('Gõ ít nhất 2 ký tự', 2200, true);
+  const o = ONLINE = { query: q, name: q.charAt(0).toUpperCase() + q.slice(1), nameEdited: false, results: null, ai: 'loading', custom: false };
+  SUG = []; renderSug();
+  $('#onlineBox').classList.remove('hidden');
+  renderOnline();
+  const same = () => ONLINE === o && norm($('#foodIn').value.trim()) === norm(q);   // người dùng chưa gõ món khác
+  api('searchOnline', auth(), q).then(res => {
+    if (!same()) return;
+    if (res.existing) return useSaved(res.existing, `“${res.existing.name}” đã có trong danh sách chung`);
+    o.results = res.results; o.translated = res.translated; if (!res.ai) o.ai = 'off';
+    renderOnline();
+  }).catch(e => { if (same()) { o.results = []; renderOnline(); fail(e); } });
+  api('askGemini', auth(), q).then(res => {
+    if (!same()) return;
+    o.ai = !res.ai ? 'off' : res.result || 'none';
+    if (res.result && !o.nameEdited) o.name = res.result.name;
+    renderOnline();
+  }).catch(() => { if (same()) { o.ai = 'none'; renderOnline(); } });
+}
+function renderOnline() {
+  const o = ONLINE; if (!o) return;
+  const spin = t => `<div class="loading-row"><span class="spin sm"></span>${t}</div>`;
+  const ai = o.ai;
+  const aiBlock = ai === 'loading' ? spin('Đang hỏi Gemini (kèm tra Google)…')
+    : ai === 'off' ? '<p class="hint" style="margin:6px 0 0">Chưa bật Gemini. Chủ Google Sheet dán key Gemini miễn phí vào bảng Config, dòng <b>geminiApiKey</b>.</p>'
+    : ai === 'none' ? '<p class="hint" style="margin:6px 0 0">Gemini chưa ước tính được món này.</p>'
+    : `<ul class="list"><li class="ai-pick"><div class="grow"><div class="name">${esc(ai.name)}</div>
+        <div class="sub">${esc(ai.serving)} · ${esc(GROUP_LABEL[ai.group] || ai.group)} · đạm ${dec(ai.p)} g · tinh bột ${dec(ai.c)} g · béo ${dec(ai.f)} g</div>
+        ${ai.note ? `<div class="sub">${esc(ai.note)} · độ tin cậy ${esc(ai.confidence)}</div>` : ''}
+        ${ai.links.length ? `<div class="sub">Nguồn: ${ai.links.map(l => `<a href="${esc(l.uri)}" target="_blank" rel="noopener">${esc(l.title || 'trang web')}</a>`).join(', ')}</div>` : ''}</div>
+        <span class="kc">${nf(ai.kcal)}<small>kcal</small></span><button class="btn" onclick="pickOnline('ai')">Chọn</button></li></ul>`;
+  const db = o.results;
+  const dbBlock = db === null ? spin('Đang tìm trong USDA và Open Food Facts…')
+    : db.length ? `<ul class="list">${db.map((r, i) => `<li><div class="grow"><div class="name">${esc(r.name)}</div>
+        <div class="sub">${esc(r.source)} · đạm ${dec(r.p)} g · tinh bột ${dec(r.c)} g · béo ${dec(r.f)} g</div></div>
+        <span class="kc">${nf(r.kcal)}<small>/100 g</small></span><button class="btn sec" onclick="pickOnline(${i})">Chọn</button></li>`).join('')}</ul>`
+    : '<p class="hint" style="margin:6px 0 0">Không có kết quả.</p>';
+  const groups = GROUP_ORDER;
+  $('#onlineBox').innerHTML = `<div class="online">
+    <div class="oh"><div><b>Tra “${esc(o.query)}”</b><div class="sub">Món bạn chọn hoặc tự nhập được lưu vào danh sách chung, lần sau ai cũng tìm thấy ngay.</div></div>
+      <button class="x" onclick="closeOnline()" aria-label="Đóng">${icon('x')}</button></div>
+    <label>Tên lưu vào danh sách<input id="onlineName" value="${esc(o.name)}" oninput="ONLINE.name=this.value;ONLINE.nameEdited=true"></label>
+    <div class="lbl-s">Gemini ước tính · theo khẩu phần người Việt</div>${aiBlock}
+    <div class="lbl-s">Cơ sở dữ liệu quốc tế · trên 100 g${o.translated && norm(o.translated) !== norm(o.query) ? ' · dịch: “' + esc(o.translated) + '”' : ''}</div>${dbBlock}
+    <div class="lbl-s">Không thấy món đúng?</div>
+    <div class="online-alt">
+      <a class="btn sec" href="https://www.google.com/search?q=${encodeURIComponent(o.query + ' bao nhiêu calo')}" target="_blank" rel="noopener">${icon('search')}Tìm trên Google</a>
+      <button class="btn sec" onclick="ONLINE.custom=!ONLINE.custom;renderOnline()">Tự nhập món</button></div>
+    ${o.custom ? `<div class="custom">
+      <div class="grid2">
+        <label>Khẩu phần<input id="cuServ" placeholder="vd: 1 tô, 1 ly 500ml" autocomplete="off"></label>
+        <label>Calo (kcal)<input id="cuKcal" inputmode="decimal" autocomplete="off" placeholder="vd: 450"></label>
+        <label>Đạm (g) <span class="muted">tuỳ chọn</span><input id="cuP" inputmode="decimal" autocomplete="off"></label>
+        <label>Tinh bột (g) <span class="muted">tuỳ chọn</span><input id="cuC" inputmode="decimal" autocomplete="off"></label>
+        <label>Béo (g) <span class="muted">tuỳ chọn</span><input id="cuF" inputmode="decimal" autocomplete="off"></label>
+        <label>Nhóm<select id="cuG">${groups.map(g => `<option value="${esc(g)}">${esc(GROUP_LABEL[g] || g)}</option>`).join('')}</select></label>
+      </div>
+      <button class="btn" style="width:100%;margin-top:12px" onclick="saveCustom()">Lưu vào danh sách chung</button></div>` : ''}
+  </div>`;
+  if (o.custom && !$('#cuKcal').value) setTimeout(() => $('#cuServ').focus(), 30);
+}
+/** Món đã lưu (hoặc đã có sẵn) → đưa vào danh sách trên máy và chọn luôn để nhập phần ăn. */
+function useSaved(item, msg) {
+  if (!BOOT.foods.some(f => norm(f.name) === norm(item.name))) { BOOT.foods.push(item); VOCAB = null; }
+  closeOnline();
+  $('#foodIn').value = item.name; FS.addons = []; FS.frac = 1;
+  onFoodInput();
+  toast(msg, 3200);
+}
+async function pickOnline(i) {
+  const o = ONLINE, r = i === 'ai' ? o.ai : o.results[i];
+  const name = (o.nameEdited || i !== 'ai' ? o.name : r.name).trim() || o.query;
+  try {
+    const item = await api('saveOnlineFood', auth(), r, name);
+    useSaved(item, item.existed ? `“${item.name}” đã có trong danh sách chung`
+      : `Đã lưu “${item.name}” vào danh sách chung · ${nf(item.kcal)} kcal${i === 'ai' ? ' / ' + item.serving : ' / 100 g'}`);
+  } catch (e) { fail(e); }
+}
+async function saveCustom() {
+  const o = ONLINE, kcal = numVal($('#cuKcal').value), opt = id => ($(id).value.trim() ? numVal($(id).value) : 0);
+  if (!(kcal >= 0 && kcal < 3000)) { $('#cuKcal').focus(); return toast('Nhập số calo của một khẩu phần, ví dụ 450', 3000, true); }
+  try {
+    const item = await api('addCustomFood', auth(), { name: (o.name || o.query).trim(), serving: $('#cuServ').value.trim() || '1 phần', kcal,
+      protein: opt('#cuP'), carb: opt('#cuC'), fat: opt('#cuF'), group: $('#cuG').value });
+    useSaved(item, item.existed ? `“${item.name}” đã có trong danh sách chung` : `Đã lưu “${item.name}” vào danh sách chung`);
+  } catch (e) { fail(e); }
+}
+function closeOnline() { ONLINE = null; const b = $('#onlineBox'); if (b) { b.classList.add('hidden'); b.innerHTML = ''; } }
+function manualFromOnline() { if (ONLINE) { ONLINE.custom = true; renderOnline(); } }
+function pickFood(i) {
+  const g = SUG[i]; if (!g) return;
+  $('#foodIn').value = g.f.name; FS.addons = g.addons.slice(); FS.frac = 1;
+  SUG = []; renderSug(); $('#foodClear').classList.remove('hidden'); renderDish();
+}
+function toggleAddon(name) {
+  const i = FS.addons.indexOf(name);
+  if (i >= 0) FS.addons.splice(i, 1); else FS.addons.push(name);
+  renderDish();
+}
+function setFrac(f) { FS.frac = f; renderDish(); }
+function qtyStep(d) {
+  const g = $('#unitSel').value === 'g', el = $('#servIn'), v = numVal(el.value) || 0;
+  el.value = Math.max(g ? 10 : 1, v + d * (g ? 50 : 1));
+  renderPreview();
+}
+
+/** "1 chén (~150g)" → {n:150, unit:'g'}; "1 hộp 180ml" → {n:180, unit:'ml'} */
+function gramsOf(serving) {
+  const m = String(serving || '').match(/(\d+(?:[.,]\d+)?)\s*(g|ml)\b/i);
+  return m ? { n: Number(m[1].replace(',', '.')), unit: m[2].toLowerCase() } : null;
+}
+function servingsValue(f) {
+  const v = numVal($('#servIn').value) || 0, g = f && gramsOf(f.serving);
+  return $('#unitSel').value === 'g' && g ? v / g.n : (v || 1) * FS.frac;
+}
+const perServing = f => f.kcal + addonsOf(f.name).filter(a => FS.addons.includes(a.addon)).reduce((t, a) => t + a.kcal, 0);
+
+function renderDish() {
+  const f = currentFood(), g = f && gramsOf(f.serving), sel = $('#unitSel'), typed = $('#foodIn').value.trim();
+  $('#dishBox').classList.toggle('hidden', !typed);
+  const list = f ? addonsOf(f.name) : [];
+  $('#addonBox').innerHTML = list.length ? `<div class="lbl-s" style="margin-top:14px">Thêm / bớt</div><div class="chips">${list.map(a => {
+    const on = FS.addons.includes(a.addon);
+    return `<button class="chip tog${on ? ' on' : ''}" aria-pressed="${on}" onclick="toggleAddon('${esc(a.addon)}')">${on ? icon('check') : ''}${esc(a.addon)}
+      <span>${a.kcal > 0 ? '+' : ''}${nf(a.kcal)}</span></button>`;
+  }).join('')}</div>` : '';
+  const want = g ? `<option value="kp">suất</option><option value="g">${g.unit}</option>` : '<option value="kp">suất</option>';
+  if (sel.innerHTML !== want) { const was = sel.value; sel.innerHTML = want; sel.value = g && was === 'g' ? 'g' : 'kp'; }
+  if (f && sel.dataset.food !== f.name) {          // vừa chọn món khác
+    sel.dataset.food = f.name;
+    const per100 = g && /^\s*100\s*(g|ml)\s*$/i.test(f.serving);   // món tính theo 100 g → nhập gram, món khác → 1 suất
+    sel.value = per100 ? 'g' : 'kp'; $('#servIn').value = per100 ? 100 : 1; FS.frac = 1;
+  }
+  if (!f) sel.dataset.food = '';
+  sel.dataset.unit = sel.value;
+  sel.classList.toggle('hidden', !g);
+  const grams = sel.value === 'g';
+  $('#fracSeg').classList.toggle('hidden', grams);
+  document.querySelectorAll('#fracSeg button').forEach(b => {
+    const on = Number(b.dataset.f) === FS.frac; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  });
+  $('#qtyLbl').textContent = grams ? 'Khối lượng' : 'Ăn được · số suất';
+  $('#qtyLbl').style.marginTop = list.length ? '16px' : '14px';
+  renderPreview();
+}
+function renderPreview() {
+  const f = currentFood(), typed = $('#foodIn').value.trim(), n = servingsValue(f), g = f && gramsOf(f.serving);
+  $('#previewName').textContent = f ? [f.name].concat(FS.addons.map(lc)).join(' + ') : typed || 'Chọn món để thêm';
+  $('#previewSub').textContent = !typed ? 'Gõ tên món hoặc chạm vào món hay ăn'
+    : !f && SUG.length ? 'Chọn một gợi ý phía trên, hoặc tra trên mạng'
+    : !f ? 'Chưa có trong danh sách · bấm Thêm để tra trên mạng'
+    : $('#unitSel').value === 'g' && g
+      ? `${$('#servIn').value || 0} ${g.unit}` + (g.n === 100 && /^\s*100\s*(g|ml)\s*$/i.test(f.serving) ? '' : ` · ${fmtServ(n)} (${f.serving})`)
+      : fmtServ(n) + ' · ' + f.serving;
+  $('#previewKcal').innerHTML = f ? `${nf(perServing(f) * n)}<small>kcal</small>` : '';
+  $('#addFoodBtn').disabled = !typed;
+  $('#manualBox').classList.add('hidden');
+}
+function switchUnit() {
+  const sel = $('#unitSel'), f = currentFood(), g = f && gramsOf(f.serving), v = numVal($('#servIn').value) || 0;
+  if (g && sel.dataset.unit !== sel.value) {   // chỉ quy đổi khi đơn vị thật sự đổi
+    $('#servIn').value = sel.value === 'g' ? Math.round(v * FS.frac * g.n) : Math.max(1, Math.round(v / g.n));
+    FS.frac = 1;
+  }
+  renderDish();
+}
+function resetFoodForm() {
+  $('#foodIn').value = ''; $('#servIn').value = 1; $('#unitSel').value = 'kp'; $('#unitSel').dataset.food = '';
+  FS.addons = []; FS.frac = 1; $('#manKcal').value = ''; $('#manServ').value = '';
+  onFoodInput();
+}
+
+function renderFood() {
+  document.querySelectorAll('#mealSeg button').forEach(b => {
+    b.classList.toggle('on', b.dataset.m === S.meal); b.setAttribute('aria-selected', b.dataset.m === S.meal);
+  });
+  const t = DAY.totals;
+  $('#foodTotal').textContent = t.eaten > t.target ? 'vượt ' + nf(t.eaten - t.target) + ' kcal' : 'còn ' + nf(t.target - t.eaten) + ' kcal';
+  $('#foodSum').textContent = nf(t.eaten) + ' / ' + nf(t.target) + ' kcal';
+  const skipped = DAY.skipped || [];
+  const groups = BOOT.meals.map(m => ({ m, items: DAY.foods.filter(f => f.meal === m), skip: skipped.includes(m) })).filter(g => g.items.length || g.skip);
+  $('#foodListBox').innerHTML = groups.length ? groups.map(g => g.skip ? `
+      <div class="mealhead"><b>${g.m}</b><span>Bỏ bữa · <button class="lnk" style="padding:0" onclick="setSkip('${g.m}', false)">Hoàn tác</button></span></div>` : `
+      <div class="mealhead"><b>${g.m}</b><span>${nf(g.items.reduce((s, f) => s + Number(f.kcal), 0))} kcal</span></div>
+      <ul class="list">${g.items.map(f => `<li><div class="grow"><div class="name">${esc(f.food)}</div>
+        <div class="sub">${fmtServ(f.servings)} · đạm ${dec(f.protein)} g · tinh bột ${dec(f.carb)} g · béo ${dec(f.fat)} g</div></div>
+        <span class="kc">${nf(f.kcal)}<small>kcal</small></span>${rowActs('food', f.id)}</li>`).join('')}</ul>`).join('')
+    : '<p class="muted" style="margin:0">Chưa ghi món nào trong ngày này.</p>';
+
+  const prev = DAY.prevMeals.find(m => m.meal === S.meal);
+  const mealEmpty = !DAY.foods.some(f => f.meal === S.meal);   // chỉ gợi ý chép khi bữa còn trống → tránh chép trùng
+  const isSkip = skipped.includes(S.meal), canSkip = S.meal !== 'Phụ' && mealEmpty;
+  $('#copyBox').innerHTML = (prev && prev.count && mealEmpty && !isSkip ? `<div class="suggest">
+      <div class="grow"><div style="font-weight:600">Ăn lại bữa ${S.meal.toLowerCase()} ${ddmm(addDays(S.date, -1))}?</div>
+      <div class="small muted">${esc(prev.items.join(', '))} · ${nf(prev.kcal)} kcal</div></div>
+      <button class="btn" onclick="copyPrev()">Chép</button></div>` : '')
+    + (canSkip ? `<div class="suggest skip">
+      <div class="grow"><div style="font-weight:600">${isSkip ? 'Đã đánh dấu bỏ bữa ' + S.meal.toLowerCase() : 'Không ăn bữa ' + S.meal.toLowerCase() + '?'}</div>
+      <div class="small muted">${isSkip ? 'Thêm món vào bữa này thì dấu bỏ bữa tự mất.' : 'Đánh dấu bỏ bữa để ngày vẫn được tính là ghi đủ.'}</div></div>
+      <button class="btn sec" onclick="setSkip('${S.meal}', ${!isSkip})">${isSkip ? 'Hoàn tác' : 'Bỏ bữa'}</button></div>` : '');
+  $('#favBox').innerHTML = DAY.favorites.length ? `<div class="lbl-s">Hay ăn · chạm để thêm ngay</div>
+    <div class="chips">${DAY.favorites.map((f, i) => `<button class="chip" onclick="quickAdd(${i})">${esc(f.food)}
+      <span>${f.servings != 1 ? fmtServ(f.servings) + ' · ' : ''}${nf(f.kcal)}</span></button>`).join('')}</div>` : '';
+  renderGroups();
+}
+
+/** Đánh dấu bữa chính không ăn (khác với quên ghi) – hiện ngay, lưu ở nền; lỗi thì trả lại. */
+async function setSkip(meal, on) {
+  const day = DAY, was = (day.skipped || []).slice();
+  const apply = list => { day.skipped = list; day.byMeal.forEach(m => { m.skipped = list.includes(m.meal); }); if (DAY === day) { renderToday(); renderFood(); } };
+  apply(on ? was.concat(meal) : was.filter(m => m !== meal));
+  try {
+    await api('skipMeal', auth(), { date: day.date, meal, on });
+    toast(on ? `Đã ghi nhận: bỏ bữa ${meal.toLowerCase()}` : `Đã bỏ dấu bỏ bữa ${meal.toLowerCase()}`);
+    refreshDay();
+  } catch (e) { apply(was); fail(e); }
+}
+
+async function quickAdd(i) {
+  const f = DAY.favorites[i];
+  try {
+    const r = await api('addFood', auth(), { date: S.date, meal: S.meal, food: f.food, servings: f.servings });
+    toast(`+ ${r.entry.food} · ${nf(r.entry.kcal)} kcal`); refreshDay();
+  } catch (e) { fail(e); }
+}
+
+async function copyPrev() {
+  try {
+    const n = await api('copyMeal', auth(), addDays(S.date, -1), S.meal, S.date);
+    toast(`Đã chép ${n} món vào bữa ${S.meal.toLowerCase()}`); refreshDay();
+  } catch (e) { fail(e); }
+}
+
+async function addFood() {
+  const typed = $('#foodIn').value.trim();
+  if (!typed) return toast('Nhập tên món trước', 2200, true);
+  const f = currentFood();
+  const manual = !$('#manualBox').classList.contains('hidden');
+  if (!f && !manual) return openOnline();          // món chưa có: cho người dùng chọn kết quả tra, không tự lấy bừa
+  const btn = $('#addFoodBtn'); btn.disabled = true; btn.textContent = 'Đang thêm';
+  try {
+    const res = await api('addFood', auth(), {
+      date: S.date, meal: S.meal, food: f ? f.name : typed, addons: f ? FS.addons : [],
+      servings: Math.round(servingsValue(f) * 100) / 100,
+      manualKcal: manual ? Number($('#manKcal').value) : null, manualServing: manual ? $('#manServ').value : null,
+    });
+    if (res.notFound) {
+      $('#manualBox').classList.remove('hidden'); $('#manKcal').focus();
+    } else {
+      if (!f && !BOOT.foods.some(x => x.name === res.item.name)) { BOOT.foods.push(res.item); VOCAB = null; }   // món mới tra được / nhập tay
+      toast(res.lookedUp ? `Tra được ${res.item.kcal} kcal / 100 g · nguồn: ${res.item.source}` : `+ ${res.entry.food} · ${nf(res.entry.kcal)} kcal`, res.lookedUp ? 4500 : 2200);
+      if (norm($('#foodIn').value.trim()) === norm(typed)) resetFoodForm();
+      refreshDay();
+    }
+  } catch (e) { fail(e); }
+  btn.textContent = 'Thêm'; btn.disabled = !$('#foodIn').value.trim();
+}
+
+// ================================================================ TẬP LUYỆN
+function exHint() {
+  if (!DAY) return;
+  const a = BOOT.activities.find(x => x.name === $('#actSel').value);
+  const m = Number($('#minIn').value) || 0;
+  if (a) $('#exHint').textContent = `Đốt thêm khoảng ${nf(Math.max(a.met - 1, 0) * DAY.totals.weight * m / 60)} kcal`
+    + ` · (MET ${dec(a.met)} − 1) × ${dec(DAY.totals.weight)} kg × ${m} phút ÷ 60`;
+}
+function renderEx() {
+  renderWorkout();
+  const t = DAY.totals, last7 = DAY.history.slice(-7);
+  const total7 = last7.reduce((s, h) => s + h.minutes, 0), hit7 = last7.filter(h => h.minutes >= t.exerciseGoal).length;
+  $('#exWeekMeta').textContent = `${total7} phút · đạt ${hit7}/7 ngày`;
+  $('#exChart').innerHTML = barChart(last7.map(h => ({
+    label: DOW[new Date(h.date + 'T00:00:00Z').getUTCDay()], v: h.minutes, target: t.exerciseGoal, strong: h.date === S.date,
+    color: 'go', faded: h.minutes < t.exerciseGoal, title: `${ddmm(h.date)}: ${h.minutes} phút`,
+  })), { h: 150, min: t.exerciseGoal, step: t.exerciseGoal >= 30 ? 30 : 15, values: v => v, dashTarget: true, aria: 'Số phút tập 7 ngày gần nhất' })
+    + `<div class="keys" style="margin-top:6px"><span><i style="background:var(--go)"></i>Đạt mục tiêu</span>
+      <span><i style="background:var(--line-2)"></i>Chưa đạt</span><span>– – mục tiêu ${t.exerciseGoal} phút</span></div>`;
+  $('#exTotal').textContent = `${t.minutes} phút · ${nf(t.burned)} kcal`;
+  $('#exListBox').innerHTML = DAY.exercises.length ? `<ul class="list">${DAY.exercises.map(e => `<li>
+      <div class="grow"><div class="name">${esc(e.activity)}</div><div class="sub">${e.minutes} phút · MET ${dec(e.met)}</div></div>
+      <span class="kc">${nf(e.kcal)}<small>kcal</small></span>${rowActs('ex', e.id)}</li>`).join('')}</ul>`
+    : '<p class="muted" style="margin:0">Chưa có buổi tập nào. Bắt đầu với 10 phút đi bộ nhanh?</p>';
+  exHint();
+}
+// ---------------------------------------------------------------- buổi tập gợi ý (gym / nhà), tick từng hiệp
+const PLACE_SHORT = { gym: 'Gym', home_db: 'Nhà có tạ', home_bw: 'Nhà tay không' };
+const perDb = e => /tạ đơn/.test(e.name) ? ' mỗi tạ' : '';   // bài tạ đơn: số kg tính cho 1 quả
+const UNIT_WORD = { kg: 'lần', 'lần': 'lần', 'giây': 'giây', 'phút': 'phút' };
+let TS = null, SETCTX = null, setQueue = Promise.resolve(), setTimer = null;
+function renderWorkout() {
+  const w = DAY.workout, box = $('#workoutBox');
+  if (!w) { box.innerHTML = ''; return; }
+  if (!w.setup || TS) { box.innerHTML = trainSetup(w); return; }
+  const weekLine = `Tuần này ${w.week.done}/${w.week.planned} buổi · lịch ${w.week.days.map(d => DOW[d % 7]).join(', ')}`;
+  if (w.rest) {
+    box.innerHTML = `<section class="card wk"><div class="wk-h"><div><div class="kicker">Hôm nay nghỉ tạ</div><h3>Phục hồi</h3></div>
+      <button class="lnk" onclick="editTrain()">Đổi lịch tập</button></div>
+      <ul class="tips">${w.tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <div class="hint">${weekLine}. Lỡ một buổi thì hôm sau app tự xếp buổi bù.</div></section>`;
+    return;
+  }
+  const s = w.session;
+  box.innerHTML = `<section class="card wk">
+    <div class="wk-h"><div><div class="kicker">${w.makeup ? 'Buổi bù hôm nay' : 'Buổi tập hôm nay'} · ${s.minutes} phút</div><h3>${esc(s.name)}</h3></div>
+      <span class="wk-n">${s.done}/${s.total}<small>hiệp</small></span></div>
+    <div class="seg3" role="group" aria-label="Nơi tập hôm nay">${Object.keys(w.places).map(k =>
+      `<button class="${k === w.place ? 'on' : ''}" aria-pressed="${k === w.place}" onclick="setPlace('${k}')">${PLACE_SHORT[k]}</button>`).join('')}</div>
+    <ul class="list wk-list">${s.exercises.map(exRow).join('')}</ul>
+    <div class="hint">Nghỉ ${esc(s.rest)}. ${weekLine}. <button class="lnk" style="padding:0" onclick="editTrain()">Đổi lịch tập</button></div>
+  </section>`;
+}
+function exRow(e, i) {
+  const unit = UNIT_WORD[e.unit];
+  const sug = e.unit === 'kg' ? (e.suggest.weightKg != null ? ` · gợi ý <b>${dec(e.suggest.weightKg)} kg${perDb(e)}</b>` : '')
+    : e.suggest.reps ? ` · mục tiêu <b>${e.suggest.reps} ${unit}</b>` : '';
+  const short = d => e.unit === 'kg' ? `${d.reps} × ${dec(d.weightKg)}` : `${d.reps} ${e.unit === 'lần' ? 'lần' : e.unit === 'giây' ? 'giây' : 'phút'}`;
+  const sets = Array.from({ length: e.sets }, (_, k) => {
+    const d = e.done.find(x => x.setNo === k + 1);
+    return `<button class="setb${d ? ' on' : ''}" onclick="openSet(${i}, ${k + 1})" aria-label="Hiệp ${k + 1}${d ? ', đã tập ' + short(d) : ''}">${d ? short(d) : 'Hiệp ' + (k + 1)}</button>`;
+  }).join('');
+  return `<li class="wk-ex${e.done.length >= e.sets ? ' done' : ''}"><div class="grow">
+    <div class="name">${esc(e.name)}</div>
+    <div class="sub">${e.sets} hiệp × ${e.target[0]}–${e.target[1]} ${unit}${sug}</div>
+    <div class="note">${esc(e.suggest.note)}</div>
+    <div class="sets">${sets}</div>
+    <details class="howto"><summary>Cách tập</summary><p>${esc(e.howto)}</p>
+      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.name + ' hướng dẫn')}" target="_blank" rel="noopener">Xem video mẫu ↗</a></details>
+  </div></li>`;
+}
+function openSet(i, setNo) {
+  const e = DAY.workout.session.exercises[i], d = e.done.find(x => x.setNo === setNo);
+  const before = e.done.filter(x => x.setNo < setNo).pop();
+  SETCTX = { i, setNo };
+  $('#setTitle').textContent = e.name;
+  $('#setSub').textContent = `Hiệp ${setNo}/${e.sets} · mục tiêu ${e.target[0]}–${e.target[1]} ${UNIT_WORD[e.unit]}`;
+  const cur = d ? d.reps : before ? before.reps : e.suggest.reps || e.target[0];
+  const opts = e.unit === 'giây' ? [15, 20, 30, 40, 45, 50, 60, 75, 90] : e.unit === 'phút' ? [3, 5, 8, 10, 12, 15, 20]
+    : Array.from({ length: e.target[1] - e.target[0] + 7 }, (_, k) => Math.max(1, e.target[0] - 3) + k);
+  if (!opts.includes(cur)) opts.push(cur), opts.sort((a, b) => a - b);
+  $('#setReps').innerHTML = opts.map(n => `<button type="button" class="chip${n === cur ? ' on' : ''}" onclick="saveSet(${n})">${n}</button>`).join('');
+  $('#setRepsLbl').textContent = e.unit === 'giây' ? 'Giữ được bao nhiêu giây · chạm để lưu' : e.unit === 'phút' ? 'Bao nhiêu phút · chạm để lưu'
+    : 'Số lần đã làm · chạm để lưu';
+  $('#setKgBox').classList.toggle('hidden', e.unit !== 'kg');
+  $('#setKgLbl').textContent = 'Mức tạ (kg' + perDb(e) + ')';
+  const kg = d ? d.weightKg : before ? before.weightKg : e.suggest.weightKg;
+  $('#setKg').value = kg == null ? '' : dec(kg, 2);
+  $('#setUndo').textContent = d ? 'Bỏ tick hiệp này' : 'Huỷ';
+  $('#setUndo').value = d ? 'undo' : 'cancel';
+  $('#setDlg').showModal();
+  if (e.unit === 'kg' && kg == null) setTimeout(() => $('#setKg').focus(), 50);
+}
+function kgStep(dir) {
+  const e = DAY.workout.session.exercises[SETCTX.i], v = numVal($('#setKg').value) || 0;
+  $('#setKg').value = dec(Math.max(0, v + dir * (e.inc || 1)), 2);
+}
+/** Lưu 1 hiệp: hiện ngay, gửi lên ở nền theo hàng đợi; lỗi thì trả lại như cũ. */
+function saveSet(reps, done = true) {
+  const { i, setNo } = SETCTX, day = DAY, w = day.workout, e = w.session.exercises[i];
+  let kg = null;
+  if (done && e.unit === 'kg') {
+    kg = numVal($('#setKg').value);
+    if (!(kg >= 0)) { toast('Nhập mức tạ, ví dụ 20 hoặc 22,5', 3000, true); $('#setKg').focus(); return; }
+  }
+  $('#setDlg').close();
+  const was = e.done.slice();
+  e.done = e.done.filter(x => x.setNo !== setNo).concat(done ? [{ setNo, reps, weightKg: kg }] : []).sort((a, b) => a.setNo - b.setNo);
+  w.session.done = w.session.exercises.reduce((n, x) => n + x.done.length, 0);
+  renderWorkout(); renderToday();
+  if (done && w.session.done === w.session.total) toast('Xong buổi tập! Đã ghi vào nhật ký tập.', 3500);
+  setQueue = setQueue.then(() => api('logSet', auth(), { date: day.date, place: w.place, session: w.session.code, exercise: e.name, setNo, reps, weightKg: kg, done }))
+    .then(nw => { if (DAY === day) { day.workout = nw; renderWorkout(); } clearTimeout(setTimer); setTimer = setTimeout(refreshDay, 1500); })
+    .catch(err => { e.done = was; w.session.done = w.session.exercises.reduce((n, x) => n + x.done.length, 0); if (DAY === day) { renderWorkout(); renderToday(); } fail(err); });
+}
+$('#setForm').addEventListener('submit', ev => {
+  if (ev.submitter && ev.submitter.value === 'undo') { ev.preventDefault(); saveSet(null, false); }
+});
+async function setPlace(k) {
+  const day = DAY, box = $('#workoutBox');
+  S.place[day.date] = k; box.classList.add('busy');
+  try { const w = await api('getWorkout', auth(), day.date, k); if (DAY === day) { day.workout = w; renderWorkout(); } }
+  catch (e) { fail(e); }
+  box.classList.remove('busy');
+}
+function trainSetup(w) {
+  if (!TS) TS = Object.assign({ trainPlace: 'gym', trainDays: 3, trainMinutes: 45, trainLevel: 1, trainLimits: '' }, w.settings || {});
+  if (!TS.trainDays) TS.trainDays = 3;
+  const seg = (k, opts) => `<div class="segN" style="--n:${opts.length}">${opts.map(([v, l]) =>
+    `<button type="button" class="${String(TS[k]) === String(v) ? 'on' : ''}" onclick="TS.${k}=${typeof v === 'number' ? v : `'${v}'`};renderWorkout()">${l}</button>`).join('')}</div>`;
+  const lim = String(TS.trainLimits || '').split(',').filter(String);
+  return `<section class="card wk"><div class="kicker">${w.setup ? 'Đổi lịch tập' : 'Gợi ý bài tập'}</div>
+    <h3>${w.setup ? 'Thiết lập lịch tập' : 'Lập lịch tập trong 1 phút'}</h3>
+    <p class="small muted" style="margin:6px 0 0">App xếp bài theo nơi tập, số buổi và trình độ của bạn. Mỗi buổi bạn tick từng hiệp, app nhớ mức tạ và gợi ý tăng dần.</p>
+    <label>Thường tập ở đâu <span class="muted">(đổi được từng ngày)</span></label>
+    ${seg('trainPlace', [['gym', 'Phòng gym'], ['home_db', 'Nhà, có tạ đơn'], ['home_bw', 'Nhà, không tạ']])}
+    <label>Số buổi mỗi tuần</label>${seg('trainDays', [[2, '2 buổi'], [3, '3 buổi'], [4, '4 buổi'], [5, '5 buổi']])}
+    <label>Mỗi buổi</label>${seg('trainMinutes', [[30, '30 phút'], [45, '45 phút'], [60, '60 phút']])}
+    <label>Kinh nghiệm</label>${seg('trainLevel', [[1, 'Mới bắt đầu'], [2, 'Đã tập trên 6 tháng']])}
+    <label>Cần tránh <span class="muted">(tuỳ chọn)</span></label>
+    <div class="chips">${['gối', 'lưng'].map(x => `<button type="button" class="chip tog${lim.includes(x) ? ' on' : ''}" onclick="toggleLimit('${x}')">${lim.includes(x) ? icon('check') : ''}Đau ${x}</button>`).join('')}</div>
+    <div class="wiz-nav">${w.setup ? '<button class="btn sec" onclick="TS=null;renderWorkout()">Huỷ</button>' : ''}
+      <button class="btn" onclick="saveTrain()">${w.setup ? 'Lưu lịch tập' : 'Tạo lịch tập'}</button></div>
+    ${w.setup ? '<button class="btn ghost" style="width:100%;margin-top:6px;color:var(--muted)" onclick="saveTrain(true)">Tắt gợi ý bài tập</button>' : ''}
+    <div class="hint">Đây là gợi ý chung theo nguyên tắc tập phổ biến. Có chấn thương thì nên hỏi huấn luyện viên hoặc bác sĩ.</div>
+  </section>`;
+}
+function toggleLimit(x) {
+  const lim = String(TS.trainLimits || '').split(',').filter(String);
+  TS.trainLimits = (lim.includes(x) ? lim.filter(y => y !== x) : lim.concat(x)).join(',');
+  renderWorkout();
+}
+function editTrain() { TS = Object.assign({}, DAY.workout.settings); renderWorkout(); $('#workoutBox').scrollIntoView({ block: 'start' }); }
+async function saveTrain(off) {
+  const patch = Object.assign({}, TS, off ? { trainDays: 0 } : {});
+  try { await api('updateSettings', auth(), patch); TS = null; toast(off ? 'Đã tắt gợi ý bài tập' : 'Đã lưu lịch tập'); await refreshDay(); }
+  catch (e) { fail(e); }
+}
+
+async function addExercise() {
+  try {
+    const r = await api('addExercise', auth(), { date: S.date, activity: $('#actSel').value, minutes: Number($('#minIn').value) });
+    toast(`+ ${r.activity} · ${r.kcal} kcal`); refreshDay();
+  } catch (e) { fail(e); }
+}
+
+let EDIT = null;
+function openEdit(kind, id) {
+  const e = (kind === 'food' ? DAY.foods : DAY.exercises).find(x => x.id === id);
+  if (!e) return;
+  EDIT = { kind, id };
+  $('#editTitle').textContent = kind === 'food' ? e.food : e.activity;
+  const date = `<label>Ngày${dateField('name="date" required', e.date)}</label>`;
+  $('#editFields').innerHTML = kind === 'food'
+    ? `<div class="grid2"><label>Số suất<input name="servings" inputmode="decimal" autocomplete="off" value="${dec(e.servings, 2)}" required></label>
+       <label>Bữa<select name="meal">${BOOT.meals.map(m => `<option${m === e.meal ? ' selected' : ''}>${m}</option>`).join('')}</select></label></div>
+       <div class="lbl-s" style="margin-top:12px">Ăn không hết? Chọn phần đã ăn</div>
+       <div class="seg2">${FRACS.map(([f, l]) => {
+         const v = e.servings > 1 ? Math.round(Math.round(e.servings) * f * 100) / 100 : f;   // nhiều suất → theo tỷ lệ
+         return `<button type="button" class="${Number(e.servings) === v ? 'on' : ''}"
+           onclick="this.form.servings.value='${dec(v, 2)}';this.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${l}</button>`;
+       }).join('')}</div>${date}`
+    : `<label>Số phút<input name="minutes" type="number" min="1" value="${e.minutes}" required></label>${date}`;
+  $('#editErr').textContent = '';
+  $('#editDlg').showModal();
+}
+$('#editForm').addEventListener('submit', async ev => {
+  if (ev.submitter && ev.submitter.value === 'cancel') return;
+  ev.preventDefault();
+  const data = Object.fromEntries(new FormData(ev.target).entries());
+  if ('servings' in data) {
+    data.servings = numVal(data.servings);
+    if (!(data.servings > 0)) { $('#editErr').textContent = 'Số suất phải lớn hơn 0, vd 1,5'; return; }
+  }
+  try {
+    await api('updateEntry', auth(), EDIT.kind, EDIT.id, data);
+    $('#editDlg').close(); toast('Đã lưu thay đổi'); refreshDay();
+  } catch (e) {
+    if (isAuthErr(e)) { $('#editDlg').close(); fail(e); } else $('#editErr').textContent = errMsg(e);
+  }
+});
+
+/** Hộp xác nhận trong trang – confirm() của trình duyệt có thể bị chặn trong khung web của Apps Script. */
+function ask(text, yes) {
+  const d = $('#askDlg');
+  $('#askText').textContent = text; $('#askYes').textContent = yes || 'Đồng ý';
+  return new Promise(resolve => {
+    d.addEventListener('close', () => resolve(d.returnValue === 'yes'), { once: true });
+    d.returnValue = ''; d.showModal();
+  });
+}
+async function del(kind, id) {
+  if (!(await ask('Xoá mục này?', 'Xoá'))) return;
+  try { await api('deleteEntry', auth(), kind, id); toast('Đã xoá'); S.view === 'profile' ? loadProfile() : refreshDay(); } catch (e) { fail(e); }
+}
+
+// ================================================================ TUẦN
+/** Thâm hụt cộng dồn trong tuần so với đường cần đạt (mục tiêu kg/tuần × 7.700). */
+function cumChart(days, goalKcal, today) {
+  const W = 340, H = 170, pl = 34, pb = 20, top = 14, n = days.length;
+  let acc = 0;
+  const pts = days.map(d => { if (d.date > today) return null; acc += d.deficit || 0; return acc; });
+  const vals = pts.filter(v => v != null);
+  const max = Math.max(goalKcal, ...vals, 1) * 1.1, min = Math.min(0, ...vals);
+  const x = i => pl + (W - pl - 8) * i / (n - 1), y = v => top + (H - pb - top) * (1 - (v - min) / (max - min));
+  const line = pts.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+  const id = 'c' + Math.random().toString(36).slice(2, 7), last = line[line.length - 1];
+  const ticks = [], step = max > 3000 ? 1000 : 500;
+  for (let v = 0; v <= max; v += step) ticks.push(v);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Thâm hụt cộng dồn trong tuần so với mục tiêu">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--go)" stop-opacity=".45"/>
+      <stop offset="1" stop-color="var(--go)" stop-opacity="0"/></linearGradient></defs>
+    ${ticks.map(v => `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/>
+      <text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${v ? dec(v / 1000) + 'k' : 0}</text>`).join('')}
+    <line x1="${x(0)}" y1="${y(0)}" x2="${x(n - 1)}" y2="${y(goalKcal)}" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="${x(n - 1)}" y="${y(goalKcal) + 16}" text-anchor="end">cần ${nf(goalKcal)}</text>
+    ${line.length > 1 ? `<path d="M${line[0][0]},${y(0)} ${line.map(p => 'L' + p.join(',')).join(' ')} L${last[0]},${y(0)} Z" fill="url(#${id})"/>
+      <polyline points="${line.map(p => p.join(',')).join(' ')}" fill="none" stroke="var(--go)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${last ? `<circle cx="${last[0]}" cy="${last[1]}" r="5" fill="var(--go)" stroke="var(--s1)" stroke-width="2"/>
+      <text class="v" x="${last[0]}" y="${last[1] - 10}" text-anchor="middle">${nf(acc)}</text>` : ''}
+    ${days.map((d, i) => `<text x="${x(i)}" y="${H - 4}" text-anchor="middle">${d.dow}</text>`).join('')}
+  </svg>`;
+}
+const pips = (k, c) => `<div class="pips" style="--c:${c}">${Array.from({ length: 7 }, (_, i) => `<i class="${i < k ? 'on' : ''}"></i>`).join('')}</div>`;
+
+function loadWeek() {
+  const ws = S.weekStart, uid = S.userId;
+  return swr(`${uid}|week|${ws}`, () => api('getWeek', auth(), ws), renderWeek,
+    () => S.userId === uid && S.weekStart === ws, $('#v-week'));
+}
+function renderWeek(w) {
+  const v = $('#v-week');
+  {
+    const s = w.summary;
+    const mark = (b, isCal) => b == null ? '<span class="mk na">–</span>' : b ? '<span class="mk ok">✓</span>'
+      : isCal ? `<span class="mk over" title="Vượt mục tiêu calo">${flameSvg()}</span>` : '<span class="mk no">✕</span>';
+    const kg = x => x == null ? '–' : (x > 0 ? '+' : x < 0 ? '−' : '') + dec(Math.abs(x), 2);
+    const head = !s.daysLogged ? 'Bắt đầu ghi để <em>thấy tiến độ</em>'
+      : s.paceKgPerWeek >= s.goalLossKg * .8 ? `Đúng nhịp <em>${dec(s.paceKgPerWeek, 2)} kg/tuần</em>`
+      : 'Thiếu một chút, <em>tăng tốc</em> tuần tới';
+    const goalKcal = Math.round(s.goalLossKg * 7700);
+    v.innerHTML = `
+      <div class="datebar"><button class="btn ghost icon" onclick="shiftWeek(-7)" aria-label="Tuần trước">${icon('left')}</button>
+        <div class="d" onclick="S.weekStart=mondayOf(BOOT.today);loadWeek()">Tuần ${ddmm(s.start)} – ${ddmm(s.end)}</div>
+        <button class="btn ghost icon" onclick="shiftWeek(7)" aria-label="Tuần sau" ${s.end >= BOOT.today ? 'disabled' : ''}>${icon('right')}</button></div>
+      <section class="hello" style="padding-top:8px"><div><div class="kicker">Tổng kết tuần</div><h1 class="headline">${head}</h1></div></section>
+
+      <div class="tiles" style="grid-template-columns:1fr 1fr;margin-top:0">
+        <div class="tile"><span class="k">Đạt calo</span><span class="num">${s.daysOkKcal}<small>/7</small></span>${pips(s.daysOkKcal, 'var(--flame)')}</div>
+        <div class="tile"><span class="k">Đạt tập</span><span class="num">${s.daysOkEx}<small>/7</small></span>${pips(s.daysOkEx, 'var(--go)')}</div>
+        <div class="tile"><span class="k">Đủ nước</span><span class="num">${s.daysOkWater}<small>/7</small></span>${pips(s.daysOkWater, 'var(--cyan)')}</div>
+        <div class="tile"><span class="k">Ghi đủ</span><span class="num">${s.daysLogged}<small>/7</small></span>${pips(s.daysLogged, 'var(--ink-2)')}</div>
+        ${s.workoutsPlanned ? `<div class="tile" style="grid-column:1/-1"><span class="k">Buổi tập theo lịch</span><span class="num">${s.workoutsDone}<small>/${s.workoutsPlanned} buổi</small></span></div>` : ''}
+      </div>
+
+      <div class="sect"><h2>Cân nặng</h2><span class="meta">thực tế vs ước tính</span></div>
+      <section class="card vs">
+        <div><div class="kicker">Cân thực tế</div><span class="num">${kg(s.weightChange)}<small> kg</small></span></div>
+        <div><div class="kicker">Ước tính từ calo</div><span class="num" style="color:var(--muted)">${s.estLossKg ? kg(-s.estLossKg) : '–'}<small> kg</small></span></div>
+      </section>
+
+      <div class="sect"><h2>Thâm hụt cộng dồn</h2><span class="meta">mục tiêu ${dec(s.goalLossKg, 2)} kg/tuần</span></div>
+      <section class="card">${cumChart(w.days, goalKcal, BOOT.today)}
+        <div class="keys" style="margin-top:6px"><span><i style="background:var(--go)"></i>Thực tế (ngày ghi đủ)</span><span>– – đường cần đạt</span></div></section>
+
+      <div class="sect"><h2>Calo mỗi ngày</h2><span class="meta">TB ${nf(s.avgEaten)} kcal</span></div>
+      <section class="card">${barChart(w.days.map(d => ({
+          label: d.dow, v: d.eaten, target: d.target, faded: d.eaten && !d.complete,
+          color: d.eaten > d.target ? 'over' : 'go', flame: d.eaten > d.target, title: `${d.dow} ${ddmm(d.date)}: ${nf(d.eaten)} / ${nf(d.target)} kcal`,
+        })), { tick: v => v ? dec(v / 1000) + 'k' : 0, aria: 'Calo ăn mỗi ngày so với mục tiêu' })}
+        <div class="keys" style="margin-top:6px"><span><i style="background:var(--go)"></i>Trong mục tiêu</span><span><i style="background:var(--over)"></i>${flameSvg('fl')}Vượt</span>
+          <span><i style="background:var(--line-2)"></i>Ghi thiếu</span><span>— mục tiêu ngày</span></div></section>
+
+      <div class="sect"><h2>Chi tiết</h2></div>
+      <section class="card" style="overflow-x:auto"><table class="wk">
+        <tr><th>Ngày</th><th>Ăn</th><th>Thâm hụt</th><th>Calo</th><th>Tập</th><th>Nước</th></tr>
+        ${w.days.map(d => `<tr><td><b>${d.dow}</b> <span class="muted">${d.date.slice(8)}</span></td><td>${d.eaten ? nf(d.eaten) + (d.complete ? '' : '*') : '–'}</td>
+          <td>${d.deficit == null ? '–' : nf(d.deficit)}</td>
+          <td>${mark(d.okKcal, true)}</td><td>${mark(d.okEx)}</td><td title="${liters(d.waterMl)} lít">${mark(d.okWater)}</td></tr>`).join('')}
+        <tfoot><tr><td>Cả tuần</td><td>${nf(s.avgEaten)}<span class="muted"> tb</span></td><td>${nf(s.totalDeficit)}</td><td></td><td></td><td></td></tr></tfoot>
+      </table>${w.days.some(d => d.why) ? `<div class="hint">* Chưa tính vào thâm hụt và ước tính: ${w.days.filter(d => d.why).map(d => `<b>${d.dow} ${ddmm(d.date)}</b> ${esc(d.why)}`).join(' · ')}.
+        Bữa nào không ăn thì đánh dấu "Bỏ bữa" để ngày đó được tính.</div>` : ''}</section>
+
+      <div class="sect"><h2>Kế hoạch tuần tới</h2></div>
+      <section class="card">${coach(w.recs)}</section>`;
+  }
+}
+function shiftWeek(n) { S.weekStart = addDays(S.weekStart, n); loadWeek(); }
+
+// ================================================================ HỒ SƠ
+let PROFILE = null;
+/** Xu hướng cân: hồi quy tuyến tính trên 21 ngày gần nhất → kg/ngày. */
+function trendOf(ws) {
+  if (ws.length < 2) return null;
+  const last = ws[ws.length - 1].date, pts = ws.filter(w => w.date >= addDays(last, -21));
+  if (pts.length < 2) return null;
+  const t0 = Date.parse(pts[0].date), xs = pts.map(w => (Date.parse(w.date) - t0) / 864e5), ys = pts.map(w => Number(w.weightKg));
+  const mx = xs.reduce((a, b) => a + b) / xs.length, my = ys.reduce((a, b) => a + b) / ys.length;
+  const den = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+  return den ? xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / den : null;
+}
+function weightChart(ws, goal, slope) {
+  if (ws.length < 2) return '<p class="muted small" style="margin:0">Cần ít nhất 2 lần cân để vẽ biểu đồ.</p>';
+  const W = 340, H = 170, pl = 30, pb = 20, top = 14;
+  const last = ws[ws.length - 1], cur = Number(last.weightKg);
+  let proj = null;   // điểm dự kiến đạt mục tiêu (giới hạn 120 ngày để biểu đồ không quá dài)
+  if (slope && slope < 0 && cur > goal) {
+    const days = Math.min(Math.ceil((cur - goal) / -slope), 120);
+    proj = { date: addDays(last.date, days), kg: Math.max(goal, cur + slope * days) };
+  }
+  const t0 = Date.parse(ws[0].date), t1 = Date.parse((proj || last).date);
+  const vals = ws.map(w => Number(w.weightKg)).concat([goal]);
+  const mn = Math.min(...vals) - .8, mx = Math.max(...vals) + .8;
+  const x = d => pl + (W - pl - 10) * ((Date.parse(d) - t0) / Math.max(t1 - t0, 1)), y = v => top + (H - pb - top) * (1 - (v - mn) / (mx - mn));
+  const pts = ws.map(w => [x(w.date), y(Number(w.weightKg))]), id = 'w' + Math.random().toString(36).slice(2, 7);
+  const lp = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Biểu đồ cân nặng và dự kiến">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--go)" stop-opacity=".35"/>
+      <stop offset="1" stop-color="var(--go)" stop-opacity="0"/></linearGradient></defs>
+    ${[Math.ceil(mn), Math.round((mn + mx) / 2), Math.floor(mx)].map(v => `<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/>
+      <text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('')}
+    <line x1="${pl}" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="${pl + 4}" y="${y(goal) - 6}" style="fill:var(--ink-2);font-weight:600">mục tiêu ${dec(goal)} kg</text>
+    <path d="M${pts[0][0]},${H - pb} ${pts.map(p => 'L' + p.join(',')).join(' ')} L${lp[0]},${H - pb} Z" fill="url(#${id})"/>
+    <polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="var(--go)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    ${proj ? `<line x1="${lp[0]}" y1="${lp[1]}" x2="${x(proj.date)}" y2="${y(proj.kg)}" stroke="var(--go)" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round"/>
+      <circle cx="${x(proj.date)}" cy="${y(proj.kg)}" r="4" fill="var(--s1)" stroke="var(--go)" stroke-width="2"/>` : ''}
+    ${pts.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--go)"><title>${ddmm(ws[i].date)}: ${dec(ws[i].weightKg)} kg</title></circle>`).join('')}
+    <text class="v" x="${lp[0]}" y="${lp[1] - 10}" text-anchor="middle">${dec(cur)}</text>
+    <text x="${pl}" y="${H - 4}">${ddmm(ws[0].date)}</text>
+    <text x="${W}" y="${H - 4}" text-anchor="end">${proj ? 'dự kiến ' + ddmm(proj.date) : ddmm(last.date)}</text></svg>`;
+}
+function loadProfile() {
+  const uid = S.userId;
+  return swr(`${uid}|profile`, () => api('getProfile', auth()), renderProfile, () => S.userId === uid, $('#v-profile'));
+}
+function renderProfile(p) {
+  const v = $('#v-profile');
+  const pin = id => `<input id="${id}" type="password" inputmode="numeric" autocomplete="off" pattern="\\d{4,6}" maxlength="6">`;
+  {
+    PROFILE = p;
+    const u = PROFILE.user, s = PROFILE.stats, ws = PROFILE.weights;
+    const lost = Math.round((s.startWeight - s.currentWeight) * 10) / 10, need = s.startWeight - s.goalWeight;
+    const prog = need > 0 ? clamp01(lost / need) : 0;
+    const slope = trendOf(ws);
+    const nextMs = [.25, .5, .75, 1].find(m => m > prog + 1e-9);
+    const nextKg = nextMs ? s.startWeight - need * nextMs : null;
+    let eta = 'Cân ít nhất 2 lần để xem dự kiến ngày về đích.';
+    if (slope != null) {
+      eta = slope < 0 && s.currentWeight > s.goalWeight
+        ? `Theo nhịp ${dec(-slope * 7, 2)} kg/tuần, về đích khoảng <b>${addDays(ws[ws.length - 1].date, Math.ceil((s.currentWeight - s.goalWeight) / -slope)).split('-').reverse().join('/')}</b>.`
+        : 'Cân nặng chưa giảm trong 3 tuần gần đây. Xem lại khẩu phần và lịch tập.';
+    }
+    v.innerHTML = `
+      <section class="phead"><div class="av lg">${esc(initial(u.name))}</div>
+        <div class="grow"><h2>${esc(u.name)}</h2><div class="small muted">${esc(u.gender)} · ${s.age} tuổi · ${dec(u.heightCm)} cm · ${esc(String(u.activity).replace(/ \(.*\)/, ''))}</div></div>
+        <button class="btn sec" onclick="openUser(PROFILE.user)">Sửa hồ sơ</button></section>
+
+      <section class="card journey" style="margin-top:12px">
+        <div class="kicker">Đã giảm</div>
+        <span class="num">${lost > 0 ? '−' : ''}${dec(Math.abs(lost))}<small> / ${dec(need)} kg</small></span>
+        <div class="track"><i style="width:${prog * 100}%"></i>${[.25, .5, .75].map(m => `<b style="left:${m * 100}%"></b>`).join('')}</div>
+        <div class="ends"><span>Bắt đầu <b>${dec(s.startWeight)}</b></span><span>Hiện tại <b>${dec(s.currentWeight)}</b></span><span>Mục tiêu <b>${dec(s.goalWeight)}</b></span></div>
+        ${nextKg != null ? `<div class="hint">Cột mốc tiếp theo: <b>${dec(nextKg)} kg</b> (${Math.round(nextMs * 100)}% chặng đường).</div>` : ''}
+      </section>
+
+      ${BOOT.fitness ? `${bodySection(p.body, s)}
+
+      <div class="sect"><h2>Mục tiêu</h2><span class="meta">quyết định mục tiêu ăn mỗi ngày</span></div>
+      <section class="card">
+        <div class="segN" style="--n:3;margin-top:0">${['Giảm mỡ', 'Giảm mỡ, giữ cơ', 'Tăng cơ'].map(g =>
+          `<button type="button" class="${s.goalType === g ? 'on' : ''}" onclick="setGoal('${g}')">${g}</button>`).join('')}</div>
+        <div class="hint">${{ 'Giảm mỡ': 'Ăn dưới mức tiêu hao theo tốc độ giảm đã chọn (' + dec(u.ratePerWeek) + ' kg/tuần).',
+          'Giảm mỡ, giữ cơ': 'Ăn dưới mức tiêu hao khoảng 10%, ưu tiên đạm và tập tạ: giảm chậm hơn nhưng giữ cơ.',
+          'Tăng cơ': 'Ăn dư khoảng 250 kcal mỗi ngày và tập tạ đều: tăng cơ, hạn chế tăng mỡ.' }[s.goalType]}</div>
+        <div class="grid2" style="align-items:end">
+          <label>% mỡ mục tiêu <span class="muted">(tuỳ chọn)</span><input id="goalFat" inputmode="decimal" autocomplete="off" value="${s.goalFatPct ? dec(s.goalFatPct) : ''}" placeholder="vd: 18"></label>
+          <button class="btn sec" onclick="saveGoalFat()">Lưu</button></div>
+        <div class="hint">${s.goalByFat ? `Về ${dec(s.goalFatPct)}% mỡ mà giữ nguyên khối nạc ${dec(s.leanKg)} kg thì cân đích khoảng <b>${dec(s.goalByFat)} kg</b>.`
+          : s.goalFatPct ? 'Nhập chỉ số cơ thể (có % mỡ) để app tính cân đích theo % mỡ.' : `Cân đích hiện tại: ${dec(s.goalWeight)} kg (sửa trong Sửa hồ sơ).`}</div>
+      </section>` : ''}
+
+      <div class="sect"><h2>Đường về đích</h2></div>
+      <section class="card">${weightChart(ws, s.goalWeight, slope)}<div class="hint">${eta}</div></section>
+
+      <div class="sect"><h2>Ghi cân nặng</h2></div>
+      <section class="card">
+        <label style="margin-top:0">Ngày${dateField('id="wDate"', BOOT.today)}</label>
+        <div class="grid2">
+          <label>Cân nặng (kg)<input id="wKg" placeholder="vd: ${dec(s.currentWeight)}" inputmode="decimal" autocomplete="off"></label>
+          <label>Vòng eo (cm)<input id="wWaist" placeholder="tuỳ chọn" inputmode="decimal" autocomplete="off"></label>
+        </div>
+        <div class="hint">Gõ số lẻ bằng dấu phẩy hoặc dấu chấm đều được. Cân lại trong cùng ngày sẽ ghi đè lần trước.</div>
+        <button class="btn" style="width:100%;margin-top:14px" onclick="addWeight()">Ghi cân nặng</button>
+        <ul class="list" style="margin-top:12px">${ws.slice().reverse().slice(0, 6).map(w => `<li>
+          <span class="grow">${dateLabel(w.date)}</span>
+          <span class="sub">${w.waistCm ? dec(w.waistCm) + ' cm' : ''}</span><span class="kc">${dec(w.weightKg)}<small>kg</small></span>
+          <span class="acts"><button onclick="del('weight','${w.id}')" aria-label="Xoá">${icon('x')}</button></span></li>`).join('')}</ul>
+      </section>
+
+      <div class="sect"><h2>Chỉ số</h2></div>
+      <section class="card"><dl class="kv">
+        <div><dt>Mục tiêu ăn mỗi ngày${BOOT.fitness ? `<small>${esc(s.goalType)}${s.floorHit ? ' · đã giữ ở mức tối thiểu an toàn' : ''}</small>`
+          : s.floorHit ? '<small>đã giữ ở mức tối thiểu an toàn</small>' : ''}</dt><dd>${nf(s.targetKcal)} kcal</dd></div>
+        <div><dt>Tiêu hao mỗi ngày<small>TDEE, chưa tính buổi tập</small></dt><dd>${nf(s.tdee)} kcal</dd></div>
+        <div><dt>Chuyển hoá cơ bản<small>${!BOOT.fitness ? 'BMR' : s.bmrMethod === 'lean' ? `BMR theo khối nạc ${dec(s.leanKg)} kg (Katch-McArdle) · công thức thường ra ${nf(s.bmrMifflin)}`
+          : 'BMR theo cân nặng, chiều cao, tuổi (Mifflin). Nhập % mỡ để tính theo khối nạc'}</small></dt><dd>${nf(s.bmr)} kcal</dd></div>
+        <div><dt>Chiều cao</dt><dd>${dec(u.heightCm)} cm<button class="lnk" onclick="openUser(PROFILE.user, 'heightCm')">Sửa</button></dd></div>
+        <div><dt>BMI</dt><dd>${dec(s.bmi)}</dd></div>
+        <div><dt>Đạm mỗi ngày${BOOT.fitness ? `<small>${s.leanKg ? '2 g × khối nạc' : '1,6 g × cân nặng'}</small>` : ''}</dt><dd>${s.targetProtein} g</dd></div>
+        <div><dt>Nước mỗi ngày</dt><dd>${dec(s.waterGoalL)} lít</dd></div>
+      </dl></section>
+
+      <div class="sect"><h2>Mời người mới</h2></div>
+      <section class="card">
+        <p class="small muted" style="margin:0 0 10px">Gửi link này cho bạn bè, người nhà. Họ mở ra là vào thẳng màn hình đăng ký tài khoản.</p>
+        <div class="invite"><input id="inviteUrl" readonly value="${esc(inviteUrl())}" aria-label="Link mời" onfocus="this.select()">
+          <button class="btn" onclick="copyInvite()">Sao chép</button></div>
+        ${navigator.share ? '<button class="btn sec" style="width:100%;margin-top:8px" onclick="shareInvite()">Chia sẻ qua ứng dụng khác</button>' : ''}
+        ${!IN_GAS || BOOT.siteUrl ? '' : !BOOT.appUrl ? '<div class="hint">Đây là link chạy thử. Sau khi triển khai web app, link sẽ là địa chỉ /exec của bạn.</div>'
+          : /\/dev(\?|$)/.test(BOOT.appUrl) ? '<div class="hint warn">Link /dev chỉ chủ Google Sheet mở được. Dán link /exec vào bảng Config, dòng appUrl.</div>' : ''}
+      </section>
+
+      <div class="sect"><h2>Mã PIN</h2></div>
+      <section class="card">
+        <div class="grid3">
+          <label style="margin-top:0">Hiện tại${pin('pOld')}</label>
+          <label style="margin-top:0">PIN mới${pin('pNew')}</label>
+          <label style="margin-top:0">Nhập lại${pin('pNew2')}</label>
+        </div>
+        <button class="btn sec" style="width:100%;margin-top:14px" onclick="changePin()">Đổi PIN</button>
+        <div class="hint">Đổi PIN sẽ đăng xuất hồ sơ này trên các máy khác.</div>
+      </section>`;
+  }
+}
+async function changePin() {
+  const o = $('#pOld').value, n = $('#pNew').value;
+  if (n !== $('#pNew2').value) return toast('PIN mới nhập lại không khớp', 3000, true);
+  try {
+    const remember = tok.remembered(S.userId);
+    const r = await api('changePin', auth(), o, n);
+    tok.set(S.userId, r.token, remember);
+    ['#pOld', '#pNew', '#pNew2'].forEach(s => { $(s).value = ''; });
+    toast('Đã đổi PIN');
+  } catch (e) { fail(e); }
+}
+
+// ---------------------------------------------------------------- chỉ số cơ thể (cân điện tử, mỗi tuần)
+const r1 = v => Math.round(v * 10) / 10;
+const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + dec(Math.abs(v));
+function bodySection(b, s) {
+  const items = (b && b.items) || [], last = items[items.length - 1], prev = items[items.length - 2], q = b && b.quality;
+  const diff = k => { if (!prev || last[k] == null || prev[k] == null) return ''; const d = r1(last[k] - prev[k]); return d ? signed(d) + ' so với lần trước' : 'không đổi so với lần trước'; };
+  const tile = (k, v, unit, sub) => `<div class="tile"><span class="k">${k}</span><span class="num">${v}<small> ${unit}</small></span>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  const ph = (k, f) => last && last[k] != null ? 'vd: ' + f(last[k]) : '';
+  return `<div class="sect" id="bodyCard"><h2>Chỉ số cơ thể</h2><span class="meta">${last ? 'đo ' + dateLabel(last.date) : 'từ cân điện tử, mỗi tuần'}</span></div>
+    ${last ? `<div class="tiles" style="grid-template-columns:1fr 1fr;margin-top:0">
+      ${tile('Mỡ', dec(last.fatPct), '%', dec(last.fatKg) + ' kg' + (diff('fatKg') ? ' · ' + diff('fatKg') : ''))}
+      ${tile('Khối nạc', dec(last.leanKg), 'kg', diff('leanKg') || 'cân nặng trừ mỡ')}
+      ${last.skeletalKg != null ? tile('Cơ xương', dec(last.skeletalKg), 'kg', diff('skeletalKg')) : ''}
+      ${last.visceralFat != null ? tile('Mỡ nội tạng', dec(last.visceralFat), '', diff('visceralFat')) : ''}
+      ${last.waterPct != null ? tile('Nước', dec(last.waterPct), '%', diff('waterPct')) : ''}
+      ${last.bmrScale != null ? tile('Cân báo trao đổi chất', nf(last.bmrScale), 'kcal', 'app đang dùng ' + nf(s.bmr)) : ''}
+    </div>` : ''}
+    ${q ? `<section class="card quality ${q.tone}"><div class="kicker">Thay đổi ${ddmm(q.from)} → ${ddmm(q.to)}</div>
+      <div class="qrow"><span>Cân <b>${signed(q.dWeight)}</b> kg</span><span>Mỡ <b>${signed(q.dFat)}</b> kg</span><span>Khối nạc <b>${signed(q.dLean)}</b> kg</span></div>
+      <p>${esc(q.text)}</p></section>`
+      : last ? '<div class="hint">Đo đều mỗi tuần. Sau khoảng 2 tuần, app tách được số kg thay đổi là mỡ hay khối nạc.</div>' : ''}
+    ${items.length >= 2 ? `<section class="card">${bodyChart(items)}</section>` : ''}
+    <section class="card">
+      <div class="lbl-s" style="margin-top:0">Nhập số đo từ cân</div>
+      <label>Ngày${dateField('id="bDate"', BOOT.today)}</label>
+      <div class="grid2">
+        <label>Cân nặng (kg)<input id="bodyForm" inputmode="decimal" autocomplete="off" placeholder="${ph('weightKg', dec) || 'Weight'}" oninput="bodyPreview()"></label>
+        <label>Mỡ (%)<input id="bFat" inputmode="decimal" autocomplete="off" placeholder="${ph('fatPct', dec) || 'Fat %'}" oninput="bodyPreview()"></label>
+        <label>Cơ xương (kg)<input id="bSkel" inputmode="decimal" autocomplete="off" placeholder="${ph('skeletalKg', dec) || 'Skeletal muscle'}"></label>
+        <label>Mỡ nội tạng<input id="bVis" inputmode="decimal" autocomplete="off" placeholder="${ph('visceralFat', dec) || 'V-fat'}"></label>
+        <label>Nước (%) <span class="muted">tuỳ chọn</span><input id="bWater" inputmode="decimal" autocomplete="off" placeholder="${ph('waterPct', dec) || 'Water %'}"></label>
+        <label>Trao đổi chất <span class="muted">tuỳ chọn</span><input id="bBmr" inputmode="decimal" autocomplete="off" placeholder="${ph('bmrScale', nf) || 'Metabolism'}"></label>
+      </div>
+      <div class="hint" id="bodyPrev">Đo cùng một ngày mỗi tuần, buổi sáng, sau khi đi vệ sinh và trước khi ăn uống. Cân nặng sẽ được ghi luôn vào mục cân nặng.</div>
+      <button class="btn" style="width:100%;margin-top:12px" onclick="addBody()">Lưu chỉ số</button>
+    </section>`;
+}
+function bodyPreview() {
+  const kg = numVal($('#bodyForm').value), fat = numVal($('#bFat').value);
+  $('#bodyPrev').innerHTML = kg > 0 && fat > 0 && fat < 70
+    ? `Mỡ <b>${dec(kg * fat / 100)} kg</b> · khối nạc <b>${dec(kg - kg * fat / 100)} kg</b> (cân nặng trừ mỡ)`
+    : 'Đo cùng một ngày mỗi tuần, buổi sáng, sau khi đi vệ sinh và trước khi ăn uống.';
+}
+async function addBody() {
+  const v = id => $(id).value.trim(), opt = id => (v(id) ? numVal(v(id)) : '');
+  const kg = numVal(v('#bodyForm')), fat = numVal(v('#bFat'));
+  if (!(kg >= 20 && kg <= 400)) { $('#bodyForm').focus(); return toast('Nhập cân nặng, ví dụ 78', 3000, true); }
+  if (!(fat >= 3 && fat <= 70)) { $('#bFat').focus(); return toast('Nhập % mỡ trên cân, ví dụ 24,2', 3000, true); }
+  try {
+    await api('addBody', auth(), { date: $('#bDate').value || BOOT.today, weightKg: kg, fatPct: fat, skeletalKg: opt('#bSkel'),
+                                   visceralFat: opt('#bVis'), waterPct: opt('#bWater'), bmrScale: opt('#bBmr') });
+    ['#bodyForm', '#bFat', '#bSkel', '#bVis', '#bWater', '#bBmr'].forEach(id => { $(id).value = ''; });
+    toast('Đã lưu chỉ số cơ thể'); loadProfile();
+  } catch (e) { fail(e); }
+}
+/** Thay đổi mỡ và khối nạc so với lần đo đầu (cùng một trục kg để so sánh). */
+function bodyChart(items) {
+  const W = 340, H = 160, pl = 34, pb = 22, top = 14;
+  const fs = items.map(b => r1(b.fatKg - items[0].fatKg)), ls = items.map(b => r1(b.leanKg - items[0].leanKg));
+  const all = fs.concat(ls, [0]);
+  let mx = Math.max(...all, 0.5), mn = Math.min(...all, -0.5);
+  const pad = (mx - mn) * 0.15; mx += pad; mn -= pad;
+  const t0 = Date.parse(items[0].date), span = Math.max(1, Date.parse(items[items.length - 1].date) - t0);
+  const x = d => pl + (W - pl - 14) * (Date.parse(d) - t0) / span, y = v => top + (H - pb - top) * (mx - v) / (mx - mn);
+  const path = arr => arr.map((v, i) => `${i ? 'L' : 'M'}${x(items[i].date).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const end = (arr, c) => { const v = arr[arr.length - 1], X = x(items[items.length - 1].date), Y = y(v);
+    return `<circle cx="${X}" cy="${Y}" r="3.5" fill="${c}"/><text class="v" x="${X - 6}" y="${Y - 8}" text-anchor="end">${signed(v)}</text>`; };
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Thay đổi mỡ và khối nạc so với lần đo đầu">
+    <line x1="${pl}" x2="${W - 10}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line-2)" stroke-dasharray="3 4"/>
+    <text x="${pl - 6}" y="${y(0) + 4}" text-anchor="end">0</text>
+    <path d="${path(ls)}" fill="none" stroke="var(--go)" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${path(fs)}" fill="none" stroke="var(--flame)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${end(ls, 'var(--go)')}${end(fs, 'var(--flame)')}
+    <text x="${pl}" y="${H - 4}">${ddmm(items[0].date)}</text><text x="${W - 10}" y="${H - 4}" text-anchor="end">${ddmm(items[items.length - 1].date)}</text>
+  </svg>
+  <div class="keys" style="margin-top:6px"><span><i style="background:var(--flame)"></i>Mỡ (kg)</span><span><i style="background:var(--go)"></i>Khối nạc (kg)</span><span>so với lần đo đầu</span></div>`;
+}
+async function setGoal(g) {
+  try { await api('updateSettings', auth(), { goalType: g }); toast('Mục tiêu: ' + g); loadProfile(); refreshDay(); } catch (e) { fail(e); }
+}
+async function saveGoalFat() {
+  const t = $('#goalFat').value.trim(), v = numVal(t);
+  if (t && !(v >= 3 && v <= 50)) { $('#goalFat').focus(); return toast('% mỡ mục tiêu từ 3 đến 50', 3000, true); }
+  try { await api('updateSettings', auth(), { goalFatPct: t ? v : '' }); toast(t ? 'Đã lưu % mỡ mục tiêu' : 'Đã bỏ % mỡ mục tiêu'); loadProfile(); refreshDay(); }
+  catch (e) { fail(e); }
+}
+
+async function addWeight() {
+  const kg = numVal($('#wKg').value), waistTxt = $('#wWaist').value.trim(), waist = numVal(waistTxt);
+  if (!(kg >= 20 && kg <= 400)) { $('#wKg').focus(); return toast('Nhập cân nặng, ví dụ 57,6', 3000, true); }
+  if (waistTxt && !(waist >= 30 && waist <= 250)) { $('#wWaist').focus(); return toast('Vòng eo từ 30 đến 250 cm, ví dụ 78,5', 3000, true); }
+  try {
+    await api('addWeight', auth(), { date: $('#wDate').value || BOOT.today, weightKg: kg, waistCm: waistTxt ? waist : '' });
+    $('#wKg').value = ''; $('#wWaist').value = '';
+    toast(`Đã ghi ${dec(kg)} kg` + (waistTxt ? ` · eo ${dec(waist)} cm` : '')); loadProfile();
+  } catch (e) { fail(e); }
+}
+
+// ================================================================ đăng ký tài khoản mới
+const SU = { step: 0, d: {} };
+const SU_STEPS = ['Bạn là ai?', 'Cơ thể bạn', 'Nhịp sống của bạn', 'Bảo vệ hồ sơ'];
+function startSignup() {
+  SU.step = 0;
+  SU.d = { name: '', email: '', gender: 'Nam', birthYear: '', heightCm: '', startWeight: '', goalWeight: '',
+           activity: BOOT.levels[0], ratePerWeek: 0.5, exerciseGoalMin: 30, waterGoalL: 2, pin: '', pin2: '', remember: true };
+  gate('#v-signup'); renderSignup();
+}
+/** Cùng công thức với stats_ ở backend: Mifflin-St Jeor × hệ số công việc, trừ thâm hụt theo tốc độ giảm. */
+function planOf(d) {
+  const P = BOOT.plan || {}, kg = numVal(d.startWeight), cm = numVal(d.heightCm), age = Number(BOOT.today.slice(0, 4)) - Number(d.birthYear);
+  if (!(kg > 0 && cm > 0 && age > 0)) return null;
+  const bmr = Math.round(10 * kg + 6.25 * cm - 5 * age + (d.gender === 'Nam' ? 5 : -161));
+  const tdee = Math.round(bmr * ((P.factors || {})[d.activity] || 1.2));
+  const floor = d.gender === 'Nam' ? P.minKcalMale || 1500 : P.minKcalFemale || 1200;
+  const raw = tdee - Number(d.ratePerWeek) * (P.kcalPerKg || 7700) / 7;
+  const lose = Math.max(0, kg - numVal(d.goalWeight)), target = Math.round(Math.max(raw, floor) / 10) * 10;
+  return { bmr, tdee, target, floorHit: raw < floor,   // số tuần theo thâm hụt thực tế (giống backend)
+           weeks: tdee > target ? Math.ceil(lose / ((tdee - target) * 7 / (P.kcalPerKg || 7700))) : null };
+}
+function suSet(k, v) { SU.d[k] = v; renderSignup(); }
+function suIn(el) { SU.d[el.name] = el.value; $('#suErr').textContent = ''; }
+function renderSignup() {
+  const d = SU.d, st = SU.step, arg = v => (typeof v === 'number' ? v : `'${v}'`);
+  const seg = (k, opts) => `<div class="segN" style="--n:${opts.length}">${opts.map(([v, l]) =>
+    `<button type="button" class="${String(d[k]) === String(v) ? 'on' : ''}" aria-pressed="${String(d[k]) === String(v)}" onclick="suSet('${k}', ${arg(v)})">${l}</button>`).join('')}</div>`;
+  const inp = (k, label, attrs) => `<label>${label}<input name="${k}" value="${esc(d[k])}" oninput="suIn(this)" ${attrs || ''}></label>`;
+  const body = [
+    () => `${inp('name', 'Tên của bạn', 'maxlength="40" autocomplete="given-name" placeholder="vd: Lan"')}
+      <label>Giới tính</label>${seg('gender', [['Nam', 'Nam'], ['Nữ', 'Nữ']])}
+      ${inp('birthYear', 'Năm sinh', 'type="number" inputmode="numeric" min="1930" max="2016" placeholder="vd: 1995"')}`,
+    () => `${inp('heightCm', 'Chiều cao (cm)', 'inputmode="decimal" autocomplete="off" placeholder="vd: 165"')}
+      ${inp('startWeight', 'Cân nặng hiện tại (kg)', 'inputmode="decimal" autocomplete="off" placeholder="vd: 68,5"')}
+      ${inp('goalWeight', 'Cân nặng mục tiêu (kg)', 'inputmode="decimal" autocomplete="off" placeholder="vd: 60"')}
+      <div class="hint">Mẹo: chặng đầu nên đặt giảm 5–10% cân nặng, đạt rồi đặt tiếp.</div>`,
+    () => {
+      const pl = planOf(d);
+      return `<label>Công việc hằng ngày <span class="muted">(chưa tính buổi tập)</span></label>
+      <div class="opt-cards">${BOOT.levels.map(l => { const m = l.match(/^(.*?)\s*\((.*)\)$/) || [0, l, ''];
+        return `<button type="button" class="opt-card${d.activity === l ? ' on' : ''}" onclick="suSet('activity', '${esc(l)}')"><b>${esc(m[1])}</b><span>${esc(m[2])}</span></button>`; }).join('')}</div>
+      <label>Muốn giảm mỗi tuần</label>${seg('ratePerWeek', [[0.25, '0,25 kg'], [0.5, '0,5 kg'], [0.75, '0,75 kg'], [1, '1 kg']])}
+      <div class="hint">${{ 0.25: 'Nhẹ nhàng, dễ duy trì', 0.5: 'Khuyến nghị cho hầu hết mọi người', 0.75: 'Nhanh, cần kỷ luật', 1: 'Rất nhanh, chỉ nên ngắn hạn' }[d.ratePerWeek]}</div>
+      <label>Tập mỗi ngày</label>${seg('exerciseGoalMin', [[15, '15 phút'], [30, '30 phút'], [45, '45 phút'], [60, '60 phút']])}
+      <label>Uống nước mỗi ngày</label>${seg('waterGoalL', [[1.5, '1,5 l'], [2, '2 l'], [2.5, '2,5 l'], [3, '3 l']])}
+      ${pl ? `<div class="plan"><div class="kicker">Kế hoạch của bạn</div>
+        <span class="num">${nf(pl.target)}<small> kcal mỗi ngày</small></span>
+        <dl class="kv">
+          <div><dt>Tiêu hao mỗi ngày<small>chưa tính buổi tập</small></dt><dd>${nf(pl.tdee)} kcal</dd></div>
+          <div><dt>Thâm hụt mỗi ngày</dt><dd>${nf(pl.tdee - pl.target)} kcal</dd></div>
+          <div><dt>Về đích ${dec(numVal(d.goalWeight))} kg</dt><dd>${pl.weeks != null ? '~' + pl.weeks + ' tuần' : '–'}</dd></div>
+        </dl>${pl.floorHit ? '<div class="hint">Đã giữ ở mức calo tối thiểu an toàn, nên có thể lâu hơn dự kiến.</div>' : ''}</div>` : ''}`;
+    },
+    () => `${inp('pin', 'Mã PIN (4–6 số)', 'type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"')}
+      ${inp('pin2', 'Nhập lại mã PIN', 'type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"')}
+      <div class="hint">Dùng PIN này để mở hồ sơ trên máy khác. Đừng dùng mã PIN ngân hàng.</div>
+      ${inp('email', 'Email <span class="muted">(tuỳ chọn)</span>', 'type="email" autocomplete="email"')}
+      <label class="remember"><input type="checkbox" ${d.remember !== false ? 'checked' : ''} onchange="SU.d.remember=this.checked"> Ghi nhớ đăng nhập trên máy này</label>
+      <div class="hint" style="margin-top:4px">Tắt nếu đây là máy dùng chung – đóng tab sẽ phải nhập PIN lại.</div>
+      <div class="plan" style="margin-top:16px"><div class="kicker">Sẵn sàng</div>
+        <dl class="kv" style="margin-top:8px">
+          <div><dt>Tên</dt><dd>${esc(d.name)}</dd></div>
+          <div><dt>Cân nặng</dt><dd>${dec(numVal(d.startWeight))} → ${dec(numVal(d.goalWeight))} kg</dd></div>
+          <div><dt>Mục tiêu ăn</dt><dd>${planOf(d) ? nf(planOf(d).target) + ' kcal/ngày' : '–'}</dd></div>
+        </dl></div>`,
+  ][st]();
+  $('#v-signup').innerHTML = `<div class="wiz">
+    <div class="steps" aria-label="Bước ${st + 1} trên 4">${SU_STEPS.map((_, i) => `<i class="${i <= st ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="su-top"><div class="kicker">Bước ${st + 1}/4</div>${BOOT.users.length
+      ? '<button type="button" class="lnk" onclick="showLogin(store.get(\'calo.userId\'))">Đã có tài khoản? Đăng nhập</button>' : ''}</div>
+    <h2>${SU_STEPS[st]}</h2>
+    <form id="suForm" onsubmit="event.preventDefault();suNext()" novalidate>${body}
+      <div class="err" id="suErr" role="alert"></div>
+      <div class="wiz-nav">
+        ${st || BOOT.users.length ? `<button type="button" class="btn sec" onclick="suBack()">${st ? 'Quay lại' : 'Huỷ'}</button>` : ''}
+        <button class="btn" id="suNextBtn">${st < 3 ? 'Tiếp tục' : 'Tạo tài khoản'}</button>
+      </div>
+    </form></div>`;
+  const first = $('#suForm input'); if (first && !first.value) setTimeout(() => first.focus(), 30);
+}
+function suCheck() {
+  const d = SU.d, y = Number(BOOT.today.slice(0, 4)), n = k => Number(String(d[k]).replace(',', '.'));
+  if (SU.step === 0) {
+    if (!String(d.name).trim()) return 'Nhập tên của bạn';
+    if (BOOT.users.some(u => norm(u.name) === norm(d.name))) return 'Tên này đã có người dùng – thêm họ hoặc biệt danh';
+    if (!(n('birthYear') >= 1930 && n('birthYear') <= y - 10)) return 'Năm sinh chưa hợp lệ';
+  }
+  if (SU.step === 1) {
+    if (!(n('heightCm') >= 100 && n('heightCm') <= 230)) return 'Chiều cao từ 100 đến 230 cm';
+    if (!(n('startWeight') >= 30 && n('startWeight') <= 300)) return 'Cân nặng hiện tại chưa hợp lệ';
+    if (!(n('goalWeight') >= 30 && n('goalWeight') < n('startWeight'))) return 'Cân nặng mục tiêu cần thấp hơn cân nặng hiện tại';
+  }
+  if (SU.step === 3) {
+    if (!/^\d{4,6}$/.test(d.pin)) return 'Mã PIN gồm 4–6 chữ số';
+    if (d.pin !== d.pin2) return 'Hai lần nhập PIN chưa khớp';
+  }
+  return '';
+}
+async function suNext() {
+  const err = suCheck();
+  if (err) { $('#suErr').textContent = err; return; }
+  if (SU.step < 3) { SU.step++; renderSignup(); window.scrollTo(0, 0); return; }
+  const d = SU.d, btn = $('#suNextBtn'); btn.disabled = true; btn.textContent = 'Đang tạo…';
+  loader.on('Đang tạo tài khoản…');
+  try {
+    const data = Object.assign({}, d); delete data.pin2;
+    ['startWeight', 'goalWeight', 'heightCm'].forEach(k => { data[k] = numVal(data[k]); });
+    delete data.remember;
+    const r = await api('saveUser', data, null);
+    tok.set(r.id, r.token, d.remember !== false);
+    BOOT.users.push(r);
+    S.view = 'today';
+    renderUsers(r.id);
+    toast(`Chào mừng ${r.name}! Bắt đầu bằng việc ghi bữa đầu tiên nhé`, 4000);
+  } catch (e) {
+    $('#suErr').textContent = errMsg(e);
+    btn.disabled = false; btn.textContent = 'Tạo tài khoản';
+  }
+  loader.off();
+}
+function suBack() {
+  if (SU.step > 0) { SU.step--; renderSignup(); return; }
+  if (!BOOT.users.length) return;
+  const back = BOOT.users.find(u => u.id === store.get('calo.userId'));
+  back && tok.get(back.id) ? pickUser(back.id) : showLogin(back ? back.id : null);
+}
+
+// ---------------------------------------------------------------- mời người mới
+const inviteUrl = () => (BOOT.siteUrl || (IN_GAS ? BOOT.appUrl : '') || location.origin + location.pathname) + '?join=1';
+async function copyInvite() {
+  const el = $('#inviteUrl');
+  try { await navigator.clipboard.writeText(el.value); }
+  catch (e) { el.select(); try { document.execCommand('copy'); } catch (x) { return toast('Chọn link rồi sao chép thủ công', 3000, true); } }
+  toast('Đã sao chép link mời');
+}
+function shareInvite() {
+  navigator.share({ title: 'Calo', text: 'Cùng mình theo dõi calo và giảm cân nhé!', url: inviteUrl() })
+    .catch(e => { if (!e || e.name !== 'AbortError') copyInvite(); });
+}
+
+// ================================================================ người dùng
+function openUser(u, focus) {
+  const f = $('#userForm'); f.reset();
+  $('#userDlgTitle').textContent = u ? 'Sửa hồ sơ' : 'Hồ sơ mới';
+  // hồ sơ đã có: cân nặng hiện tại lấy từ lần cân gần nhất, ô này là cân nặng lúc bắt đầu
+  $('#swLbl').textContent = u ? 'Cân nặng lúc bắt đầu (kg)' : 'Cân nặng hiện tại (kg)';
+  const show = (k, v) => (['heightCm', 'startWeight', 'goalWeight', 'waterGoalL'].includes(k) && v !== '' ? dec(v) : v);
+  if (u) Object.keys(u).forEach(k => { if (f.elements[k]) f.elements[k].value = show(k, u[k]); });
+  else f.elements.id.value = '';
+  document.querySelectorAll('.newOnly').forEach(el => el.classList.toggle('hidden', !!u));
+  $('#userErr').textContent = '';
+  f.elements.pin.required = f.elements.pin2.required = !u;
+  $('#userDlg').showModal();
+  if (focus && f.elements[focus]) setTimeout(() => { f.elements[focus].focus(); f.elements[focus].select(); }, 50);
+}
+$('#userForm').addEventListener('submit', async ev => {
+  if (ev.submitter && ev.submitter.value === 'cancel') return;
+  ev.preventDefault();
+  const data = Object.fromEntries(new FormData(ev.target).entries());
+  if (!data.id && data.pin !== data.pin2) { $('#userErr').textContent = 'PIN nhập lại không khớp.'; return; }
+  delete data.pin2;
+  const bad = { heightCm: [100, 230, 'Chiều cao từ 100 đến 230 cm'], startWeight: [30, 300, 'Cân nặng chưa hợp lệ'],
+                goalWeight: [30, 300, 'Cân nặng mục tiêu chưa hợp lệ'], waterGoalL: [0.5, 6, 'Lượng nước từ 0,5 đến 6 lít'] };
+  for (const k of Object.keys(bad)) {
+    const v = numVal(data[k]);
+    if (!(v >= bad[k][0] && v <= bad[k][1])) { $('#userErr').textContent = bad[k][2]; ev.target.elements[k].focus(); return; }
+    data[k] = v;
+  }
+  const btn = $('#saveUserBtn'); btn.disabled = true;
+  try {
+    const r = await api('saveUser', data, data.id ? auth() : null);
+    if (r.token) tok.set(r.id, r.token, true);
+    $('#userDlg').close();
+    const i = BOOT.users.findIndex(u => u.id === r.id);
+    if (i >= 0) BOOT.users[i] = r; else BOOT.users.push(r);
+    toast('Đã lưu hồ sơ ' + r.name);
+    if (i < 0) S.view = 'today';
+    renderUsers(r.id);
+  } catch (e) {
+    if (isAuthErr(e)) { $('#userDlg').close(); fail(e); } else $('#userErr').textContent = errMsg(e);
+  }
+  btn.disabled = false;
+});
+
+// ================================================================ events
+$('#userSel').onchange = e => { S.userId = e.target.value; store.set('calo.userId', S.userId); syncAvatar(); openCurrent(); };
+$('#lockBtn').onclick = () => { tok.del(S.userId); clearCache(); showLock(); toast('Đã khoá hồ sơ trên máy này'); };
+$('#addUserBtn').onclick = () => startSignup();
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => show(b.dataset.v));
+$('#mealSeg').onclick = e => { const m = e.target.closest('button'); if (m && m.dataset.m) { S.meal = m.dataset.m; renderFood(); } };
+$('#foodIn').oninput = onFoodInput; $('#servIn').oninput = renderPreview; $('#unitSel').onchange = switchUnit;
+$('#foodIn').onblur = () => setTimeout(() => { $('#sugBox').classList.add('hidden'); }, 120);
+$('#foodIn').onfocus = () => {   // mở lại gợi ý (không đóng khung kết quả tra mạng đang xem)
+  if (!ONLINE && !currentFood() && $('#foodIn').value.trim()) { SUG = searchFoods($('#foodIn').value); renderSug(); }
+};
+$('#foodClear').onclick = () => { resetFoodForm(); $('#foodIn').focus(); };
+$('#datePick').onchange = e => { if (e.target.value) setDate(e.target.value); };
+$('#foodIn').onkeydown = e => {
+  const open = sugOpen(), n = SUG.length + 1;          // + dòng "Tra trên mạng"
+  if (e.key === 'ArrowDown' && open) { e.preventDefault(); sugIdx = (sugIdx + 1) % n; renderSug(); }
+  else if (e.key === 'ArrowUp' && open) { e.preventDefault(); sugIdx = (sugIdx - 1 + n) % n; renderSug(); }
+  else if (e.key === 'Escape') { SUG = []; sugIdx = -1; $('#sugBox').classList.add('hidden'); closeOnline(); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (open && sugIdx === SUG.length) openOnline();
+    else if (open && SUG.length) pickFood(Math.max(sugIdx, 0));
+    else addFood();
+  }
+};
+$('#actSel').onchange = exHint; $('#minIn').oninput = exHint;
+init();
+</script>
+</body>
+</html>
